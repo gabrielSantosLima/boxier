@@ -1,6 +1,25 @@
 name: Build
 
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to build and attach the mod jar to (e.g. v0.0.1)"
+        required: false
+        default: ""
+        type: string
+  workflow_call:
+    inputs:
+      tag:
+        description: "Release tag to build and attach the mod jar to"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -9,6 +28,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.tag || github.ref }}
           fetch-depth: 0
           fetch-tags: true
 
@@ -28,3 +48,25 @@ jobs:
 
       - name: Build with Gradle
         run: ./gradlew build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: boxier-mod
+          path: build/libs/*.jar
+          if-no-files-found: error
+
+      - name: Attach mod jar to release
+        if: ${{ inputs.tag != '' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          shopt -s nullglob
+          files=(build/libs/*.jar)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No mod jar found in build/libs/"
+            exit 1
+          fi
+          gh release upload "$TAG" "${files[@]}" --clobber

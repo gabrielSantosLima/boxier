@@ -40,7 +40,8 @@ authors="Gabriel Dos Santos Lima"
 
 # The description text for the mod (multi line!) (#mandatory)
 description='''
-Example mod description.
+A universal sandbox mod for Minecraft. Break the Lucky Block to spawn
+monsters or be showered with diamonds.
 '''
 
 # The [[mixins]] block allows you to declare your mixin config to FML so that it gets loaded.

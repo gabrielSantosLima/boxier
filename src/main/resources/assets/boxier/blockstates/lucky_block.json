@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "boxier:block/lucky_block"
+    }
+  }
+}

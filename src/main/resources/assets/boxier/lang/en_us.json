@@ -1,0 +1,13 @@
+{
+  "itemGroup.boxier": "Example Mod Tab",
+  "block.boxier.example_block": "Example Block",
+  "item.boxier.example_item": "Example Item",
+
+  "boxier.configuration.title": "Boxier Configs",
+  "boxier.configuration.section.boxier.common.toml": "Boxier Configs",
+  "boxier.configuration.section.boxier.common.toml.title": "Boxier Configs",
+  "boxier.configuration.items": "Item List",
+  "boxier.configuration.logDirtBlock": "Log Dirt Block",
+  "boxier.configuration.magicNumberIntroduction": "Magic Number Text",
+  "boxier.configuration.magicNumber": "Magic Number"
+}

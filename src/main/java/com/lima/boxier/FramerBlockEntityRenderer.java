@@ -13,6 +13,7 @@ import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.Identifier;
+import net.minecraft.util.Util;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
@@ -42,10 +43,11 @@ public class FramerBlockEntityRenderer implements BlockEntityRenderer<FramerBloc
 
     @Override
     public void submit(FramerRenderState state, PoseStack poseStack, SubmitNodeCollector collector, CameraRenderState camera) {
-        Identifier texture = FramerImageCache.getTexture(state.url);
-        if (texture == null) {
+        FramerImageCache.Animation animation = FramerImageCache.getAnimation(state.url);
+        if (animation == null) {
             return;
         }
+        Identifier texture = animation.frameAt(Util.getMillis());
 
         RenderType type = RenderTypes.entityCutout(texture);
         int light = state.lightCoords;

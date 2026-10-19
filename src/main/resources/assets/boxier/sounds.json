@@ -1,0 +1,10 @@
+{
+  "wither_battle": {
+    "sounds": [
+      {
+        "name": "boxier:wither_battle",
+        "stream": true
+      }
+    ]
+  }
+}

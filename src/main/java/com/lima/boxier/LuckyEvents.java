@@ -143,6 +143,7 @@ public final class LuckyEvents {
             new LuckyEvent("baby_zombie_netherite", LuckyCategory.TRAP, 3, LuckyEvents::babyZombieNetherite),
             new LuckyEvent("wardens", LuckyCategory.TRAP, 1, LuckyEvents::wardens),
             new LuckyEvent("giant", LuckyCategory.TRAP, 1, LuckyEvents::giant),
+            new LuckyEvent("wither", LuckyCategory.TRAP, 1, LuckyEvents::wither),
             new LuckyEvent("lava_igloo", LuckyCategory.TRAP, 2, LuckyEvents::lavaIgloo)
     );
 
@@ -381,6 +382,10 @@ public final class LuckyEvents {
         if (entity instanceof Giant giant) {
             giant.setPersistenceRequired();
         }
+    }
+
+    private static void wither(ServerLevel level, ServerPlayer player, BlockPos pos, RandomSource random) {
+        LuckyEffects.spawnNear(level, pos, random, EntityTypes.WITHER, 3.0);
     }
 
     private static void lavaIgloo(ServerLevel level, ServerPlayer player, BlockPos pos, RandomSource random) {

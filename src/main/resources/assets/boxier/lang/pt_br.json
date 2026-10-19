@@ -1,6 +1,13 @@
 {
   "itemGroup.boxier": "Boxier",
   "block.boxier.lucky_block": "Bloco da Sorte",
+  "block.boxier.framer": "Moldura",
+
+  "boxier.framer.title": "Moldura",
+  "boxier.framer.url": "URL da Imagem",
+  "boxier.framer.width": "Largura",
+  "boxier.framer.height": "Altura",
+  "boxier.framer.save": "Salvar",
 
   "boxier.lucky.diamonds": "O Bloco da Sorte te deu uma pilha de diamantes!",
   "boxier.lucky.random_loot": "O Bloco da Sorte dropou uns itens!",

@@ -14,6 +14,7 @@ import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.material.MapColor;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -43,6 +44,8 @@ public class Boxier {
     public static final DeferredRegister<CreativeModeTab> CREATIVE_MODE_TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, MODID);
     // Create a Deferred Register to hold SoundEvents which will all be registered under the "boxier" namespace
     public static final DeferredRegister<SoundEvent> SOUND_EVENTS = DeferredRegister.create(Registries.SOUND_EVENT, MODID);
+    // Create a Deferred Register to hold BlockEntityTypes which will all be registered under the "boxier" namespace
+    public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITY_TYPES = DeferredRegister.create(BuiltInRegistries.BLOCK_ENTITY_TYPE, MODID);
 
     // Music played during the epic Wither battle
     public static final DeferredHolder<SoundEvent, SoundEvent> WITHER_BATTLE = SOUND_EVENTS.register("wither_battle",
@@ -59,12 +62,30 @@ public class Boxier {
     // Creates a BlockItem for the Lucky Block with the id "boxier:lucky_block"
     public static final DeferredItem<BlockItem> LUCKY_BLOCK_ITEM = ITEMS.registerSimpleBlockItem("lucky_block", LUCKY_BLOCK);
 
-    // Creates a creative tab with the id "boxier:boxier" for the Lucky Block
+    // The Framer: a block that renders an image from a configurable URL
+    public static final DeferredBlock<FramerBlock> FRAMER_BLOCK = BLOCKS.registerBlock("framer",
+            FramerBlock::new,
+            props -> props
+                    .mapColor(MapColor.WOOD)
+                    .strength(1.0F)
+                    .sound(SoundType.WOOD)
+                    .noCollision()
+                    .noOcclusion());
+
+    public static final DeferredItem<BlockItem> FRAMER_ITEM = ITEMS.registerSimpleBlockItem("framer", FRAMER_BLOCK);
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<FramerBlockEntity>> FRAMER_BLOCK_ENTITY =
+            BLOCK_ENTITY_TYPES.register("framer", () -> new BlockEntityType<>(FramerBlockEntity::new, FRAMER_BLOCK.get()));
+
+    // Creates a creative tab with the id "boxier:boxier" for the Lucky Block and the Framer
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> BOXIER_TAB = CREATIVE_MODE_TABS.register("boxier", () -> CreativeModeTab.builder()
             .title(Component.translatable("itemGroup.boxier")) // The language key for the title of your CreativeModeTab
             .withTabsBefore(CreativeModeTabs.BUILDING_BLOCKS)
             .icon(() -> LUCKY_BLOCK_ITEM.get().getDefaultInstance())
-            .displayItems((parameters, output) -> output.accept(LUCKY_BLOCK_ITEM.get()))
+            .displayItems((parameters, output) -> {
+                output.accept(LUCKY_BLOCK_ITEM.get());
+                output.accept(FRAMER_ITEM.get());
+            })
             .build());
 
     // The constructor for the mod class is the first code that is run when your mod is loaded.
@@ -81,6 +102,8 @@ public class Boxier {
         CREATIVE_MODE_TABS.register(modEventBus);
         // Register the Deferred Register to the mod event bus so sound events get registered
         SOUND_EVENTS.register(modEventBus);
+        // Register the Deferred Register to the mod event bus so block entity types get registered
+        BLOCK_ENTITY_TYPES.register(modEventBus);
 
         // Register ourselves for server and other game events we are interested in.
         NeoForge.EVENT_BUS.register(this);

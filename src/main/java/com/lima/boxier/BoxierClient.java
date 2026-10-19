@@ -35,5 +35,6 @@ public class BoxierClient {
     @SubscribeEvent
     static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(EntityTypes.WITHER, EpicWitherRenderer::new);
+        event.registerBlockEntityRenderer(Boxier.FRAMER_BLOCK_ENTITY.get(), FramerBlockEntityRenderer::new);
     }
 }

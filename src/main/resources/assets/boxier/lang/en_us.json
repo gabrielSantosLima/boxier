@@ -1,6 +1,13 @@
 {
   "itemGroup.boxier": "Boxier",
   "block.boxier.lucky_block": "Lucky Block",
+  "block.boxier.framer": "Framer",
+
+  "boxier.framer.title": "Framer",
+  "boxier.framer.url": "Image URL",
+  "boxier.framer.width": "Width",
+  "boxier.framer.height": "Height",
+  "boxier.framer.save": "Save",
 
   "boxier.lucky.diamonds": "The Lucky Block gave you a pile of diamonds!",
   "boxier.lucky.random_loot": "The Lucky Block dropped some loot!",

@@ -11,7 +11,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 
-import com.mojang.blaze3d.platform.InputConstants;
+import org.lwjgl.sdl.SDLKeycode;
 
 public class BrowserScreen extends Screen {
     private final BlockPos pos;
@@ -24,6 +24,7 @@ public class BrowserScreen extends Screen {
     private int imageY;
     private int imageWidth;
     private int imageHeight;
+    private boolean mouseOverView;
 
     public BrowserScreen(BlockPos pos) {
         super(Component.translatable("boxier.browser.title"));
@@ -107,6 +108,7 @@ public class BrowserScreen extends Screen {
         }
 
         graphics.fill(0, 0, this.width, 28, 0xCC000000);
+        this.mouseOverView = insideImage(mouseX, mouseY);
         if (!this.granted && !this.status.isEmpty()) {
             graphics.centeredText(this.font, Component.literal(this.status), this.width / 2,
                     this.imageY + this.imageHeight / 2, 0xFFFFFF);
@@ -172,7 +174,13 @@ public class BrowserScreen extends Screen {
     @Override
     public void mouseMoved(double mouseX, double mouseY) {
         super.mouseMoved(mouseX, mouseY);
-        if (this.granted && insideImage(mouseX, mouseY)) {
+        boolean inside = insideImage(mouseX, mouseY);
+        this.mouseOverView = inside;
+        if (inside) {
+            this.urlBox.setFocused(false);
+            this.setFocused(null);
+        }
+        if (this.granted && inside) {
             sendMouse(BrowserMousePayload.MOVE, mouseX, mouseY, 0, 0, 0.0F);
         }
     }
@@ -182,7 +190,9 @@ public class BrowserScreen extends Screen {
         if (super.mouseDragged(event, dragX, dragY)) {
             return true;
         }
-        if (this.granted && insideImage(event.x(), event.y())) {
+        boolean inside = insideImage(event.x(), event.y());
+        this.mouseOverView = inside;
+        if (this.granted && inside) {
             sendMouse(BrowserMousePayload.MOVE, event, 0.0F);
             return true;
         }
@@ -194,9 +204,10 @@ public class BrowserScreen extends Screen {
         if (super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)) {
             return true;
         }
-        if (this.granted && insideImage(mouseX, mouseY)) {
+        this.mouseOverView = insideImage(mouseX, mouseY);
+        if (this.granted && this.mouseOverView) {
             ClientPacketDistributor.sendToServer(new BrowserMousePayload(this.pos, BrowserMousePayload.SCROLL,
-                    normalizedX(mouseX), normalizedY(mouseY), 0, 0, (float) scrollY));
+                    normalizedX(mouseX), normalizedY(mouseY), 0, 0, (float) -scrollY * 120.0F));
             return true;
         }
         return false;
@@ -222,21 +233,21 @@ public class BrowserScreen extends Screen {
 
     @Override
     public boolean keyPressed(KeyEvent event) {
-        boolean escape = event.keycode() == InputConstants.KEY_ESCAPE || event.key() == InputConstants.KEY_ESCAPE;
-        boolean control = (event.modifiers() & InputConstants.MOD_CONTROL) != 0;
+        boolean escape = event.keycode() == SDLKeycode.SDLK_ESCAPE;
+        boolean control = (event.modifiers() & (SDLKeycode.SDL_KMOD_LCTRL | SDLKeycode.SDL_KMOD_RCTRL)) != 0;
 
         if (escape) {
             if (control) {
-                sendKey(BrowserKeyPayload.DOWN, InputConstants.KEY_ESCAPE, "", event.modifiers());
-                sendKey(BrowserKeyPayload.UP, InputConstants.KEY_ESCAPE, "", event.modifiers());
+                sendKey(BrowserKeyPayload.DOWN, event, "");
+                sendKey(BrowserKeyPayload.UP, event, "");
             } else {
                 this.onClose();
             }
             return true;
         }
 
-        if (this.urlBox.isFocused()) {
-            if (event.keycode() == InputConstants.KEY_RETURN) {
+        if (!this.mouseOverView && this.urlBox.isFocused()) {
+            if (event.keycode() == SDLKeycode.SDLK_RETURN || event.keycode() == SDLKeycode.SDLK_RETURN2) {
                 this.navigate();
                 return true;
             }
@@ -246,36 +257,114 @@ public class BrowserScreen extends Screen {
             return true;
         }
 
-        sendKey(BrowserKeyPayload.DOWN, event.keycode(), "", event.modifiers());
+        sendKey(BrowserKeyPayload.DOWN, event, "");
+        String text = printableText(event);
+        if (!text.isEmpty()) {
+            sendText(text);
+        }
         return true;
     }
 
     @Override
     public boolean keyReleased(KeyEvent event) {
-        if (this.urlBox.isFocused()) {
+        if (!this.mouseOverView && this.urlBox.isFocused()) {
             return super.keyReleased(event);
         }
-        sendKey(BrowserKeyPayload.UP, event.keycode(), "", event.modifiers());
+        sendKey(BrowserKeyPayload.UP, event, "");
         return true;
     }
 
     @Override
     public boolean charTyped(CharacterEvent event) {
-        if (this.urlBox.isFocused()) {
+        if (!this.mouseOverView && this.urlBox.isFocused()) {
             return super.charTyped(event);
         }
-        if (!this.granted || event.codepoint() < 32) {
+        if (!this.granted || event.codepoint() <= 127) {
             return true;
         }
-        ClientPacketDistributor.sendToServer(new BrowserKeyPayload(this.pos, BrowserKeyPayload.TEXT, "", "", 0,
-                event.codepointAsString(), 0));
+        sendText(event.codepointAsString());
         return true;
     }
 
-    private void sendKey(int action, int glfwKey, String text, int modifiers) {
-        BrowserKeyMapper.KeyData data = BrowserKeyMapper.map(glfwKey);
+    private void sendKey(int action, KeyEvent event, String text) {
+        BrowserKeyMapper.KeyData data = mapKey(event);
         ClientPacketDistributor.sendToServer(new BrowserKeyPayload(this.pos, action, data.key(), data.code(),
-                data.keyCode(), text, cdpModifiers(modifiers)));
+                data.keyCode(), text, cdpModifiers(event.modifiers())));
+    }
+
+    private void sendText(String text) {
+        ClientPacketDistributor.sendToServer(new BrowserKeyPayload(this.pos, BrowserKeyPayload.TEXT, "", "", 0,
+                text, 0));
+    }
+
+    private static BrowserKeyMapper.KeyData mapKey(KeyEvent event) {
+        return BrowserKeyMapper.map(event.keycode());
+    }
+
+    private static String printableText(KeyEvent event) {
+        BrowserKeyMapper.KeyData mapped = mapKey(event);
+        if (mapped.key().length() != 1) {
+            return "";
+        }
+        int modifiers = event.modifiers();
+        if ((modifiers & (SDLKeycode.SDL_KMOD_LCTRL | SDLKeycode.SDL_KMOD_RCTRL
+                | SDLKeycode.SDL_KMOD_LALT | SDLKeycode.SDL_KMOD_RALT
+                | SDLKeycode.SDL_KMOD_LGUI | SDLKeycode.SDL_KMOD_RGUI)) != 0) {
+            return "";
+        }
+        boolean shift = (modifiers & (SDLKeycode.SDL_KMOD_LSHIFT | SDLKeycode.SDL_KMOD_RSHIFT)) != 0;
+        int value = event.keycode();
+        if (value < 32 || value > 126) {
+            return "";
+        }
+        char character = (char) value;
+        if (character >= 'a' && character <= 'z') {
+            return String.valueOf(shift ? Character.toUpperCase(character) : character);
+        }
+        if (character >= 'A' && character <= 'Z') {
+            return String.valueOf(shift ? character : Character.toLowerCase(character));
+        }
+        if (character >= '0' && character <= '9') {
+            if (!shift) {
+                return String.valueOf(character);
+            }
+            return switch (character) {
+                case '1' -> "!";
+                case '2' -> "@";
+                case '3' -> "#";
+                case '4' -> "$";
+                case '5' -> "%";
+                case '6' -> "^";
+                case '7' -> "&";
+                case '8' -> "*";
+                case '9' -> "(";
+                case '0' -> ")";
+                default -> String.valueOf(character);
+            };
+        }
+        if (character == ' ') {
+            return " ";
+        }
+        if (shift) {
+            char shifted = switch (character) {
+                case '-' -> '_';
+                case '=' -> '+';
+                case '[' -> '{';
+                case ']' -> '}';
+                case '\\' -> '|';
+                case ';' -> ':';
+                case '\'' -> '"';
+                case ',' -> '<';
+                case '.' -> '>';
+                case '/' -> '?';
+                case '`' -> '~';
+                default -> 0;
+            };
+            if (shifted != 0) {
+                return String.valueOf(shifted);
+            }
+        }
+        return String.valueOf(character);
     }
 
     @Override
@@ -296,18 +385,18 @@ public class BrowserScreen extends Screen {
         super.onClose();
     }
 
-    private static int cdpModifiers(int glfwModifiers) {
+    private static int cdpModifiers(int sdlModifiers) {
         int modifiers = 0;
-        if ((glfwModifiers & InputConstants.MOD_ALT) != 0) {
+        if ((sdlModifiers & (SDLKeycode.SDL_KMOD_LALT | SDLKeycode.SDL_KMOD_RALT)) != 0) {
             modifiers |= 1;
         }
-        if ((glfwModifiers & InputConstants.MOD_CONTROL) != 0) {
+        if ((sdlModifiers & (SDLKeycode.SDL_KMOD_LCTRL | SDLKeycode.SDL_KMOD_RCTRL)) != 0) {
             modifiers |= 2;
         }
-        if ((glfwModifiers & InputConstants.MOD_SUPER) != 0) {
+        if ((sdlModifiers & (SDLKeycode.SDL_KMOD_LGUI | SDLKeycode.SDL_KMOD_RGUI)) != 0) {
             modifiers |= 4;
         }
-        if ((glfwModifiers & InputConstants.MOD_SHIFT) != 0) {
+        if ((sdlModifiers & (SDLKeycode.SDL_KMOD_LSHIFT | SDLKeycode.SDL_KMOD_RSHIFT)) != 0) {
             modifiers |= 8;
         }
         return modifiers;

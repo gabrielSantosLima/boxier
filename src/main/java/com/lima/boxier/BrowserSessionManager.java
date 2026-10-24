@@ -117,7 +117,8 @@ public final class BrowserSessionManager {
             case BrowserMousePayload.DOWN -> mouseButton("mousePressed", x, y, payload);
             case BrowserMousePayload.UP -> mouseButton("mouseReleased", x, y, payload);
             case BrowserMousePayload.SCROLL -> "{\"type\":\"mouseWheel\",\"x\":" + x + ",\"y\":" + y
-                    + ",\"deltaX\":0,\"deltaY\":" + payload.scroll() + ",\"modifiers\":" + payload.modifiers() + "}";
+                    + ",\"button\":\"none\",\"deltaX\":0,\"deltaY\":" + payload.scroll()
+                    + ",\"modifiers\":" + payload.modifiers() + "}";
             default -> null;
         };
 
@@ -412,8 +413,17 @@ public final class BrowserSessionManager {
             case 3 -> "right";
             default -> "left";
         };
+        int buttons = 0;
+        if ("mousePressed".equals(type)) {
+            buttons = switch (payload.button()) {
+                case 1 -> 1;
+                case 3 -> 2;
+                case 2 -> 4;
+                default -> 0;
+            };
+        }
         return "{\"type\":\"" + type + "\",\"x\":" + x + ",\"y\":" + y + ",\"button\":\"" + button
-                + "\",\"clickCount\":1,\"modifiers\":" + payload.modifiers() + "}";
+                + "\",\"buttons\":" + buttons + ",\"clickCount\":1,\"modifiers\":" + payload.modifiers() + "}";
     }
 
     private static float clamp(float value) {

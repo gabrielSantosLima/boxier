@@ -10,8 +10,10 @@ import java.util.Map;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.openal.AL10;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 
 public final class BrowserAudioManager {
@@ -37,7 +39,8 @@ public final class BrowserAudioManager {
     }
 
     private static final class Channel {
-        private static final int BUFFER_COUNT = 8;
+        private static final int BUFFER_COUNT = 24;
+        private static final int MIN_BUFFERS = 6;
 
         private final BlockPos pos;
         private final Deque<Integer> freeBuffers = new ArrayDeque<>();
@@ -70,11 +73,28 @@ public final class BrowserAudioManager {
             }
             pcm.flip();
 
+            updateGain();
             AL10.alBufferData(buffer, AL10.AL_FORMAT_MONO16, pcm, BrowserOpusEncoder.SAMPLE_RATE);
             AL10.alSourceQueueBuffers(this.source, buffer);
-            if (AL10.alGetSourcei(this.source, AL10.AL_SOURCE_STATE) != AL10.AL_PLAYING) {
+            int queued = BUFFER_COUNT - this.freeBuffers.size();
+            if (AL10.alGetSourcei(this.source, AL10.AL_SOURCE_STATE) != AL10.AL_PLAYING
+                    && queued >= MIN_BUFFERS) {
                 AL10.alSourcePlay(this.source);
             }
+        }
+
+        private void updateGain() {
+            Player player = Minecraft.getInstance().player;
+            if (player == null) {
+                return;
+            }
+            double dx = player.getX() - (this.pos.getX() + 0.5);
+            double dy = player.getY() - (this.pos.getY() + 0.5);
+            double dz = player.getZ() - (this.pos.getZ() + 0.5);
+            double distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            float linear = (float) Math.max(0.0, Math.min(1.0, 1.0 - distance / 32.0));
+            float gain = linear * linear * (3.0F - 2.0F * linear);
+            AL10.alSourcef(this.source, AL10.AL_GAIN, gain);
         }
 
         private void reclaim() {
@@ -103,9 +123,9 @@ public final class BrowserAudioManager {
                 for (int buffer : this.buffers) {
                     this.freeBuffers.add(buffer);
                 }
-                AL10.alSourcef(this.source, AL10.AL_ROLLOFF_FACTOR, 1.0F);
-                AL10.alSourcef(this.source, AL10.AL_REFERENCE_DISTANCE, 4.0F);
-                AL10.alSourcef(this.source, AL10.AL_MAX_DISTANCE, 32.0F);
+                AL10.alSourcef(this.source, AL10.AL_ROLLOFF_FACTOR, 0.0F);
+                AL10.alSourcef(this.source, AL10.AL_REFERENCE_DISTANCE, 1.0F);
+                AL10.alSourcef(this.source, AL10.AL_MAX_DISTANCE, 64.0F);
                 AL10.alSourcei(this.source, AL10.AL_SOURCE_RELATIVE, AL10.AL_FALSE);
                 AL10.alSource3f(this.source, AL10.AL_POSITION, this.pos.getX() + 0.5F, this.pos.getY() + 0.5F,
                         this.pos.getZ() + 0.5F);

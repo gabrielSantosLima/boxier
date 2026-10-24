@@ -72,7 +72,7 @@
     }
     state.contexts.add(ctx);
 
-    const processor = ctx.createScriptProcessor(4096, 1, 1);
+    const processor = ctx.createScriptProcessor(1024, 1, 1);
     const silent = ctx.createGain();
     silent.gain.value = 0;
     processor.connect(silent);

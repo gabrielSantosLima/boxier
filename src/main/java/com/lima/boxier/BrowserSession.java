@@ -25,6 +25,9 @@ import org.cef.browser.CefDevToolsClient;
 import org.cef.browser.CefFrame;
 import org.cef.browser.CefMessageRouter;
 import org.cef.callback.CefQueryCallback;
+import org.cef.callback.CefContextMenuParams;
+import org.cef.callback.CefMenuModel;
+import org.cef.handler.CefContextMenuHandlerAdapter;
 import org.cef.handler.CefDisplayHandlerAdapter;
 import org.cef.handler.CefLoadHandler;
 import org.cef.handler.CefLoadHandlerAdapter;
@@ -78,6 +81,13 @@ public final class BrowserSession implements AutoCloseable {
     private BrowserSession start(String url) {
         try {
             this.client = this.app.createClient();
+            this.client.addContextMenuHandler(new CefContextMenuHandlerAdapter() {
+                @Override
+                public void onBeforeContextMenu(CefBrowser browser, CefFrame frame, CefContextMenuParams params,
+                        CefMenuModel model) {
+                    model.clear();
+                }
+            });
             this.client.addDisplayHandler(new CefDisplayHandlerAdapter() {
                 @Override
                 public void onTitleChange(CefBrowser browser, String newTitle) {

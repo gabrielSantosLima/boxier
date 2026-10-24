@@ -1,3 +1,9 @@
+### Local planning and test artifacts ###
+PLAN.md
+/*.log
+/*.err
+/*.pid
+
 ### Gradle ###
 .gradle
 build/
@@ -25,6 +31,11 @@ out/
 .sts4-cache
 bin/
 !**/src/**/bin/
+
+# Logs
+*.log
+*.pid
+*.err
 
 ### VS Code ###
 .vscode/

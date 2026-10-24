@@ -1,0 +1,20 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "boxier:block/browser",
+      "y": 180
+    },
+    "facing=east": {
+      "model": "boxier:block/browser",
+      "y": 270
+    },
+    "facing=south": {
+      "model": "boxier:block/browser",
+      "y": 0
+    },
+    "facing=west": {
+      "model": "boxier:block/browser",
+      "y": 90
+    }
+  }
+}

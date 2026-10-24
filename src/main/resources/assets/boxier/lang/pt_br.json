@@ -2,6 +2,15 @@
   "itemGroup.boxier": "Boxier",
   "block.boxier.lucky_block": "Bloco da Sorte",
   "block.boxier.framer": "Moldura",
+  "block.boxier.browser": "Navegador",
+
+  "boxier.browser.title": "Navegador",
+  "boxier.browser.url": "URL",
+  "boxier.browser.go": "Ir",
+  "boxier.browser.size_title": "Tamanho do Navegador",
+  "boxier.browser.width": "Largura",
+  "boxier.browser.height": "Altura",
+  "boxier.browser.save": "Salvar",
 
   "boxier.framer.title": "Moldura",
   "boxier.framer.url": "URL da Imagem",

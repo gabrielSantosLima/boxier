@@ -77,6 +77,21 @@ public class Boxier {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<FramerBlockEntity>> FRAMER_BLOCK_ENTITY =
             BLOCK_ENTITY_TYPES.register("framer", () -> new BlockEntityType<>(FramerBlockEntity::new, FRAMER_BLOCK.get()));
 
+    // The Browser: a shared, server-side Chromium session rendered on a block
+    public static final DeferredBlock<BrowserBlock> BROWSER_BLOCK = BLOCKS.registerBlock("browser",
+            BrowserBlock::new,
+            props -> props
+                    .mapColor(MapColor.METAL)
+                    .strength(1.0F)
+                    .sound(SoundType.METAL)
+                    .noCollision()
+                    .noOcclusion());
+
+    public static final DeferredItem<BlockItem> BROWSER_ITEM = ITEMS.registerSimpleBlockItem("browser", BROWSER_BLOCK);
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<BrowserBlockEntity>> BROWSER_BLOCK_ENTITY =
+            BLOCK_ENTITY_TYPES.register("browser", () -> new BlockEntityType<>(BrowserBlockEntity::new, BROWSER_BLOCK.get()));
+
     // Creates a creative tab with the id "boxier:boxier" for the Lucky Block and the Framer
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> BOXIER_TAB = CREATIVE_MODE_TABS.register("boxier", () -> CreativeModeTab.builder()
             .title(Component.translatable("itemGroup.boxier")) // The language key for the title of your CreativeModeTab
@@ -85,12 +100,15 @@ public class Boxier {
             .displayItems((parameters, output) -> {
                 output.accept(LUCKY_BLOCK_ITEM.get());
                 output.accept(FRAMER_ITEM.get());
+                output.accept(BROWSER_ITEM.get());
             })
             .build());
 
     // The constructor for the mod class is the first code that is run when your mod is loaded.
     // FML will recognize some parameter types like IEventBus or ModContainer and pass them in automatically.
     public Boxier(IEventBus modEventBus, ModContainer modContainer) {
+        System.setProperty("java.awt.headless", "false");
+
         // Register the commonSetup method for modloading
         modEventBus.addListener(this::commonSetup);
 

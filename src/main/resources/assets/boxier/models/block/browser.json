@@ -1,0 +1,12 @@
+{
+  "parent": "minecraft:block/cube",
+  "textures": {
+    "particle": "boxier:block/browser_frame",
+    "down": "boxier:block/browser_frame",
+    "up": "boxier:block/browser_frame",
+    "north": "boxier:block/browser_frame",
+    "south": "boxier:block/browser_screen",
+    "west": "boxier:block/browser_frame",
+    "east": "boxier:block/browser_frame"
+  }
+}

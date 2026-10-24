@@ -1,0 +1,319 @@
+package com.lima.boxier;
+
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.CharacterEvent;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
+import net.neoforged.neoforge.client.network.ClientPacketDistributor;
+
+import com.mojang.blaze3d.platform.InputConstants;
+
+public class BrowserScreen extends Screen {
+    private final BlockPos pos;
+
+    private EditBox urlBox;
+    private boolean granted;
+    private String status = "Requesting control...";
+
+    private int imageX;
+    private int imageY;
+    private int imageWidth;
+    private int imageHeight;
+
+    public BrowserScreen(BlockPos pos) {
+        super(Component.translatable("boxier.browser.title"));
+        this.pos = pos;
+    }
+
+    @Override
+    protected void init() {
+        super.init();
+
+        this.addRenderableWidget(Button.builder(Component.literal("<"), button -> this.sendAction(BrowserActionPayload.BACK))
+                .bounds(8, 4, 28, 20)
+                .build());
+        this.addRenderableWidget(Button.builder(Component.literal(">"), button -> this.sendAction(BrowserActionPayload.FORWARD))
+                .bounds(40, 4, 28, 20)
+                .build());
+        this.addRenderableWidget(Button.builder(Component.literal("R"), button -> this.sendAction(BrowserActionPayload.RELOAD))
+                .bounds(72, 4, 28, 20)
+                .build());
+
+        this.urlBox = new EditBox(this.font, 110, 4, this.width - 200, 20, Component.translatable("boxier.browser.url"));
+        this.urlBox.setMaxLength(2048);
+        this.urlBox.setValue("");
+        this.addRenderableWidget(this.urlBox);
+
+        this.addRenderableWidget(Button.builder(Component.translatable("boxier.browser.go"), button -> this.navigate())
+                .bounds(this.width - 86, 4, 36, 20)
+                .build());
+        this.addRenderableWidget(Button.builder(Component.literal("X"), button -> this.onClose())
+                .bounds(this.width - 46, 4, 38, 20)
+                .build());
+
+        this.urlBox.setFocused(false);
+        this.setFocused(null);
+        ClientPacketDistributor.sendToServer(new BrowserControlPayload(this.pos, false));
+    }
+
+    public boolean matches(BlockPos pos) {
+        return this.pos.equals(pos);
+    }
+
+    public void handleControlResponse(BrowserControlResponsePayload payload) {
+        if (!matches(payload.pos())) {
+            return;
+        }
+        this.granted = payload.granted();
+        if (payload.granted()) {
+            this.status = "";
+            this.urlBox.setValue(payload.url());
+        } else {
+            this.status = payload.message();
+        }
+    }
+
+    private void navigate() {
+        if (!this.granted) {
+            return;
+        }
+        this.urlBox.setFocused(false);
+        this.setFocused(null);
+        ClientPacketDistributor.sendToServer(new BrowserActionPayload(this.pos, BrowserActionPayload.NAVIGATE,
+                this.urlBox.getValue().trim()));
+    }
+
+    private void sendAction(int action) {
+        ClientPacketDistributor.sendToServer(new BrowserActionPayload(this.pos, action, ""));
+    }
+
+    @Override
+    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        graphics.fill(0, 0, this.width, this.height, 0xFF000000);
+        this.layout();
+
+        BrowserTextureCache.Entry entry = BrowserTextureCache.get(this.minecraft.level, this.pos);
+        if (entry != null && entry.id() != null) {
+            graphics.blit(entry.id(), this.imageX, this.imageY, this.imageX + this.imageWidth,
+                    this.imageY + this.imageHeight, 0.0F, 1.0F, 0.0F, 1.0F);
+        } else {
+            graphics.fill(this.imageX, this.imageY, this.imageX + this.imageWidth,
+                    this.imageY + this.imageHeight, 0xFF101418);
+        }
+
+        graphics.fill(0, 0, this.width, 28, 0xCC000000);
+        if (!this.granted && !this.status.isEmpty()) {
+            graphics.centeredText(this.font, Component.literal(this.status), this.width / 2,
+                    this.imageY + this.imageHeight / 2, 0xFFFFFF);
+        }
+        super.extractRenderState(graphics, mouseX, mouseY, partialTick);
+    }
+
+    private void layout() {
+        int availableX = 8;
+        int availableY = 32;
+        int availableWidth = Math.max(1, this.width - 16);
+        int availableHeight = Math.max(1, this.height - 40);
+
+        int textureWidth = 1280;
+        int textureHeight = 1280;
+        BrowserTextureCache.Entry entry = BrowserTextureCache.get(this.minecraft.level, this.pos);
+        if (entry != null && entry.width() > 0 && entry.height() > 0) {
+            textureWidth = entry.width();
+            textureHeight = entry.height();
+        } else if (this.minecraft.level.getBlockEntity(this.pos) instanceof BrowserBlockEntity browser) {
+            textureWidth = browser.getDisplayWidth();
+            textureHeight = browser.getDisplayHeight();
+        }
+
+        double scale = Math.min(availableWidth / (double) textureWidth, availableHeight / (double) textureHeight);
+        this.imageWidth = Math.max(1, (int) Math.round(textureWidth * scale));
+        this.imageHeight = Math.max(1, (int) Math.round(textureHeight * scale));
+        this.imageX = availableX + (availableWidth - this.imageWidth) / 2;
+        this.imageY = availableY + (availableHeight - this.imageHeight) / 2;
+    }
+
+    private boolean insideImage(double mouseX, double mouseY) {
+        return mouseX >= this.imageX && mouseX < this.imageX + this.imageWidth
+                && mouseY >= this.imageY && mouseY < this.imageY + this.imageHeight;
+    }
+
+    @Override
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (super.mouseClicked(event, doubleClick)) {
+            return true;
+        }
+        if (this.granted && insideImage(event.x(), event.y())) {
+            this.urlBox.setFocused(false);
+            this.setFocused(null);
+            sendMouse(BrowserMousePayload.DOWN, event, 0.0F);
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    public boolean mouseReleased(MouseButtonEvent event) {
+        if (super.mouseReleased(event)) {
+            return true;
+        }
+        if (this.granted) {
+            sendMouse(BrowserMousePayload.UP, event, 0.0F);
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    public void mouseMoved(double mouseX, double mouseY) {
+        super.mouseMoved(mouseX, mouseY);
+        if (this.granted && insideImage(mouseX, mouseY)) {
+            sendMouse(BrowserMousePayload.MOVE, mouseX, mouseY, 0, 0, 0.0F);
+        }
+    }
+
+    @Override
+    public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
+        if (super.mouseDragged(event, dragX, dragY)) {
+            return true;
+        }
+        if (this.granted && insideImage(event.x(), event.y())) {
+            sendMouse(BrowserMousePayload.MOVE, event, 0.0F);
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if (super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)) {
+            return true;
+        }
+        if (this.granted && insideImage(mouseX, mouseY)) {
+            ClientPacketDistributor.sendToServer(new BrowserMousePayload(this.pos, BrowserMousePayload.SCROLL,
+                    normalizedX(mouseX), normalizedY(mouseY), 0, 0, (float) scrollY));
+            return true;
+        }
+        return false;
+    }
+
+    private void sendMouse(int action, MouseButtonEvent event, float scroll) {
+        ClientPacketDistributor.sendToServer(new BrowserMousePayload(this.pos, action,
+                normalizedX(event.x()), normalizedY(event.y()), event.button(), cdpModifiers(event.modifiers()), scroll));
+    }
+
+    private void sendMouse(int action, double mouseX, double mouseY, int button, int modifiers, float scroll) {
+        ClientPacketDistributor.sendToServer(new BrowserMousePayload(this.pos, action,
+                normalizedX(mouseX), normalizedY(mouseY), button, modifiers, scroll));
+    }
+
+    private float normalizedX(double mouseX) {
+        return clamp((float) ((mouseX - this.imageX) / (double) this.imageWidth));
+    }
+
+    private float normalizedY(double mouseY) {
+        return clamp((float) ((mouseY - this.imageY) / (double) this.imageHeight));
+    }
+
+    @Override
+    public boolean keyPressed(KeyEvent event) {
+        boolean escape = event.keycode() == InputConstants.KEY_ESCAPE || event.key() == InputConstants.KEY_ESCAPE;
+        boolean control = (event.modifiers() & InputConstants.MOD_CONTROL) != 0;
+
+        if (escape) {
+            if (control) {
+                sendKey(BrowserKeyPayload.DOWN, InputConstants.KEY_ESCAPE, "", event.modifiers());
+                sendKey(BrowserKeyPayload.UP, InputConstants.KEY_ESCAPE, "", event.modifiers());
+            } else {
+                this.onClose();
+            }
+            return true;
+        }
+
+        if (this.urlBox.isFocused()) {
+            if (event.keycode() == InputConstants.KEY_RETURN) {
+                this.navigate();
+                return true;
+            }
+            if (super.keyPressed(event)) {
+                return true;
+            }
+            return true;
+        }
+
+        sendKey(BrowserKeyPayload.DOWN, event.keycode(), "", event.modifiers());
+        return true;
+    }
+
+    @Override
+    public boolean keyReleased(KeyEvent event) {
+        if (this.urlBox.isFocused()) {
+            return super.keyReleased(event);
+        }
+        sendKey(BrowserKeyPayload.UP, event.keycode(), "", event.modifiers());
+        return true;
+    }
+
+    @Override
+    public boolean charTyped(CharacterEvent event) {
+        if (this.urlBox.isFocused()) {
+            return super.charTyped(event);
+        }
+        if (!this.granted || event.codepoint() < 32) {
+            return true;
+        }
+        ClientPacketDistributor.sendToServer(new BrowserKeyPayload(this.pos, BrowserKeyPayload.TEXT, "", "", 0,
+                event.codepointAsString(), 0));
+        return true;
+    }
+
+    private void sendKey(int action, int glfwKey, String text, int modifiers) {
+        BrowserKeyMapper.KeyData data = BrowserKeyMapper.map(glfwKey);
+        ClientPacketDistributor.sendToServer(new BrowserKeyPayload(this.pos, action, data.key(), data.code(),
+                data.keyCode(), text, cdpModifiers(modifiers)));
+    }
+
+    @Override
+    public boolean shouldCloseOnEsc() {
+        return false;
+    }
+
+    @Override
+    public boolean isPauseScreen() {
+        return false;
+    }
+
+    @Override
+    public void onClose() {
+        if (this.granted) {
+            ClientPacketDistributor.sendToServer(new BrowserControlPayload(this.pos, true));
+        }
+        super.onClose();
+    }
+
+    private static int cdpModifiers(int glfwModifiers) {
+        int modifiers = 0;
+        if ((glfwModifiers & InputConstants.MOD_ALT) != 0) {
+            modifiers |= 1;
+        }
+        if ((glfwModifiers & InputConstants.MOD_CONTROL) != 0) {
+            modifiers |= 2;
+        }
+        if ((glfwModifiers & InputConstants.MOD_SUPER) != 0) {
+            modifiers |= 4;
+        }
+        if ((glfwModifiers & InputConstants.MOD_SHIFT) != 0) {
+            modifiers |= 8;
+        }
+        return modifiers;
+    }
+
+    private static float clamp(float value) {
+        return Math.max(0.0F, Math.min(1.0F, value));
+    }
+}

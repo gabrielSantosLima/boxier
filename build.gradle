@@ -27,7 +27,7 @@ sourceSets.main.resources {
 }
 
 repositories {
-    // Add here additional repositories if required by some of the dependencies below.
+    mavenCentral()
 }
 
 base {
@@ -51,12 +51,20 @@ neoForge {
             client()
             // Comma-separated list of namespaces to load gametests from. Empty = all namespaces.
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+            if (project.hasProperty('browserTestUrl')) {
+                programArgument '--quickPlaySingleplayer'
+                programArgument 'New World'
+                systemProperty 'boxier.browser.testUrl', project.property('browserTestUrl')
+            }
         }
 
         server {
             server()
             programArgument '--nogui'
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+            if (project.hasProperty('browserTestUrl')) {
+                systemProperty 'boxier.browser.testUrl', project.property('browserTestUrl')
+            }
         }
 
         // This run config launches GameTestServer and runs all registered gametests, then exits.
@@ -78,6 +86,11 @@ neoForge {
 
         // applies to all the run configs above
         configureEach {
+            jvmArgument('--add-exports=java.base/java.lang=ALL-UNNAMED')
+            jvmArgument('--add-exports=java.desktop/sun.awt=ALL-UNNAMED')
+            jvmArgument('--add-exports=java.desktop/sun.java2d=ALL-UNNAMED')
+            jvmArgument('--enable-native-access=ALL-UNNAMED')
+
             // Recommended logging data for a userdev environment
             // The markers can be added/remove as needed separated by commas.
             // "SCAN": For mods scan.
@@ -108,9 +121,63 @@ neoForge {
 // "optional", meaning it will not be pulled by dependents of this mod.
 configurations {
     runtimeClasspath.extendsFrom localRuntime
+
+    jcefLibs {
+        canBeConsumed = false
+        canBeResolved = true
+    }
+
+    jarJar.exclude group: 'me.friwi', module: 'jogl-all'
+    jarJar.exclude group: 'me.friwi', module: 'gluegen-rt'
 }
 
 dependencies {
+    jcefLibs 'me.friwi:jogl-all:v2.4.0'
+    jcefLibs 'me.friwi:gluegen-rt:v2.4.0'
+}
+
+def jcefLibsJar = tasks.register('jcefLibsJar', Jar) {
+    archiveFileName = 'boxier-jcef-libs.jar'
+    destinationDirectory = layout.buildDirectory.dir('jarjar')
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from { configurations.jcefLibs.collect { zipTree(it) } }
+    manifest {
+        attributes(
+                'Manifest-Version': '1.0',
+                'Automatic-Module-Name': 'com.lima.boxier.jcef.libs'
+        )
+    }
+}
+
+dependencies {
+    jarJar(implementation("me.friwi:jcefmaven:${jcef_maven_version}")) {
+        version {
+            strictly "[${jcef_maven_version}]"
+            prefer jcef_maven_version
+        }
+    }
+    jarJar(implementation("me.friwi:jcef-api:${jcef_release}")) {
+        version {
+            strictly "[${jcef_release}]"
+            prefer jcef_release
+        }
+    }
+    runtimeOnly "me.friwi:jcef-natives-windows-amd64:${jcef_release}"
+    jarJar "me.friwi:jcef-natives-windows-amd64:${jcef_release}"
+    jarJar files(jcefLibsJar)
+
+    implementation "club.minnced:opus-java-api:1.1.1"
+    runtimeOnly "club.minnced:opus-java-natives:1.1.1"
+    jarJar "club.minnced:opus-java-api:1.1.1"
+    jarJar "club.minnced:opus-java-natives:1.1.1"
+
+    jarJar(implementation("net.java.dev.jna:jna:5.14.0")) {
+        version {
+            strictly '[5.14.0]'
+            prefer '5.14.0'
+        }
+    }
+
     // Example optional mod dependency with JEI
     // The JEI API is declared for compile time use, while the full JEI artifact is used at runtime
     // compileOnly "mezz.jei:jei-${mc_version}-common-api:${jei_version}"

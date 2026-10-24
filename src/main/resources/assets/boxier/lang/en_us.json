@@ -2,6 +2,15 @@
   "itemGroup.boxier": "Boxier",
   "block.boxier.lucky_block": "Lucky Block",
   "block.boxier.framer": "Framer",
+  "block.boxier.browser": "Browser",
+
+  "boxier.browser.title": "Browser",
+  "boxier.browser.url": "URL",
+  "boxier.browser.go": "Go",
+  "boxier.browser.size_title": "Browser Size",
+  "boxier.browser.width": "Width",
+  "boxier.browser.height": "Height",
+  "boxier.browser.save": "Save",
 
   "boxier.framer.title": "Framer",
   "boxier.framer.url": "Image URL",

@@ -38,9 +38,9 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 public final class BrowserSession implements AutoCloseable {
-    private static final int SCREENCAST_MAX_DIMENSION = 960;
-    private static final int SCREENCAST_QUALITY = 65;
-    private static final int SCREENCAST_INTERVAL_MS = 33;
+    private static final int SCREENCAST_MAX_DIMENSION = 640;
+    private static final int SCREENCAST_QUALITY = 50;
+    private static final int SCREENCAST_INTERVAL_MS = 66;
 
     public record Frame(byte[] jpeg, int width, int height, long timestamp) {
     }

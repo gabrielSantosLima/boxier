@@ -55,6 +55,7 @@ public final class BrowserRuntime {
             builder.addJcefArgs("--no-sandbox");
             builder.addJcefArgs("--autoplay-policy=no-user-gesture-required");
             builder.addJcefArgs("--mute-audio");
+            builder.addJcefArgs("--disable-audio-output");
             builder.getCefSettings().windowless_rendering_enabled = false;
             builder.getCefSettings().log_severity = CefSettings.LogSeverity.LOGSEVERITY_INFO;
             builder.getCefSettings().log_file = FMLPaths.GAMEDIR.get().resolve("boxier-browser.log").toString();

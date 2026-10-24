@@ -386,28 +386,41 @@ public final class BrowserSessionManager {
         if (input == null) {
             return null;
         }
-        String url = input.trim();
-        if (url.isEmpty()) {
+        String value = input.trim();
+        if (value.isEmpty()) {
             return "about:blank";
         }
-        if (url.equals("about:blank")) {
-            return url;
+        if (value.equalsIgnoreCase("about:blank")) {
+            return "about:blank";
         }
-        if (!url.contains("://")) {
-            url = "https://" + url;
+
+        String lower = value.toLowerCase(java.util.Locale.ROOT);
+        if (lower.startsWith("http://") || lower.startsWith("https://")) {
+            return isHttpUrl(value) ? value : searchUrl(value);
         }
+        if (value.indexOf(' ') >= 0 || value.indexOf('.') < 0) {
+            return searchUrl(value);
+        }
+
+        String candidate = "https://" + value;
+        return isHttpUrl(candidate) ? candidate : searchUrl(value);
+    }
+
+    private static boolean isHttpUrl(String value) {
         try {
-            java.net.URI uri = java.net.URI.create(url);
+            java.net.URI uri = java.net.URI.create(value);
             String scheme = uri.getScheme();
-            if (scheme == null
-                    || !(scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("https"))
-                    || uri.getHost() == null) {
-                return null;
-            }
-            return url;
+            return scheme != null
+                    && (scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("https"))
+                    && uri.getHost() != null;
         } catch (Exception exception) {
-            return null;
+            return false;
         }
+    }
+
+    private static String searchUrl(String value) {
+        return "https://www.google.com/search?q="
+                + java.net.URLEncoder.encode(value, java.nio.charset.StandardCharsets.UTF_8);
     }
 
     private static String mouseButton(String type, int x, int y, BrowserMousePayload payload) {

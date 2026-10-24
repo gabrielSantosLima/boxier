@@ -32,6 +32,8 @@ public final class BrowserCommands {
                                 .executes(context -> open(context, StringArgumentType.getString(context, "url")))))
                 .then(Commands.literal("close")
                         .executes(context -> close(context)))
+                .then(Commands.literal("audiotest")
+                        .executes(context -> audioTest(context)))
                 .then(Commands.literal("openat")
                         .then(Commands.argument("pos", BlockPosArgument.blockPos())
                                 .executes(context -> openAt(context)))));
@@ -67,6 +69,18 @@ public final class BrowserCommands {
             context.getSource().sendFailure(Component.literal("Failed: " + exception.getMessage()));
         }
         return 0;
+    }
+
+    private static int audioTest(CommandContext<CommandSourceStack> context) {
+        try {
+            ServerPlayer player = context.getSource().getPlayerOrException();
+            BrowserAudioTest.sendTone(player);
+            context.getSource().sendSuccess(() -> Component.literal("Browser audio test started"), false);
+            return 1;
+        } catch (Exception exception) {
+            context.getSource().sendFailure(Component.literal("Failed: " + exception.getMessage()));
+            return 0;
+        }
     }
 
     private static int close(CommandContext<CommandSourceStack> context) {

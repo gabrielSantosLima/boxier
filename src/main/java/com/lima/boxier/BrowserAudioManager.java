@@ -47,18 +47,33 @@ public final class BrowserAudioManager {
         private BrowserOpusDecoder decoder;
         private int source;
         private int[] buffers;
+        private boolean loggedPacket;
+        private long lastPacketAt;
 
         private Channel(BlockPos pos) {
             this.pos = pos;
         }
 
         private void play(byte[] packet) {
+            long now = System.currentTimeMillis();
+            if (this.source != 0) {
+                int state = AL10.alGetSourcei(this.source, AL10.AL_SOURCE_STATE);
+                boolean silentLongEnough = this.lastPacketAt > 0 && now - this.lastPacketAt > 500;
+                if (state != AL10.AL_PLAYING && (silentLongEnough || this.freeBuffers.isEmpty())) {
+                    resetSource();
+                }
+            }
+            this.lastPacketAt = now;
             if (!ensureOpen()) {
                 return;
             }
             short[] samples = this.decoder.decode(packet);
             if (samples == null || samples.length == 0) {
                 return;
+            }
+            if (!this.loggedPacket) {
+                this.loggedPacket = true;
+                Boxier.LOGGER.info("Browser audio packet received at {} samples={}", this.pos, samples.length);
             }
 
             reclaim();
@@ -97,6 +112,20 @@ public final class BrowserAudioManager {
             AL10.alSourcef(this.source, AL10.AL_GAIN, gain);
         }
 
+        private void resetSource() {
+            if (this.source != 0) {
+                AL10.alSourceStop(this.source);
+                AL10.alDeleteSources(this.source);
+                this.source = 0;
+            }
+            if (this.buffers != null) {
+                AL10.alDeleteBuffers(this.buffers);
+                this.buffers = null;
+            }
+            this.freeBuffers.clear();
+            Boxier.LOGGER.info("Reset browser audio channel at {}", this.pos);
+        }
+
         private void reclaim() {
             int processed = AL10.alGetSourcei(this.source, AL10.AL_BUFFERS_PROCESSED);
             while (processed-- > 0) {
@@ -129,6 +158,7 @@ public final class BrowserAudioManager {
                 AL10.alSourcei(this.source, AL10.AL_SOURCE_RELATIVE, AL10.AL_FALSE);
                 AL10.alSource3f(this.source, AL10.AL_POSITION, this.pos.getX() + 0.5F, this.pos.getY() + 0.5F,
                         this.pos.getZ() + 0.5F);
+                Boxier.LOGGER.info("Browser audio channel created at {}", this.pos);
                 return true;
             } catch (Exception exception) {
                 Boxier.LOGGER.warn("Failed to create browser audio channel", exception);

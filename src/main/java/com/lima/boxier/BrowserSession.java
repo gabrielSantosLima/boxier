@@ -53,6 +53,7 @@ public final class BrowserSession implements AutoCloseable {
     private final int height;
     private final CountDownLatch firstFrame = new CountDownLatch(1);
     private final AtomicInteger frameCount = new AtomicInteger();
+    private final AtomicInteger audioChunkCount = new AtomicInteger();
     private final AtomicReference<String> title = new AtomicReference<>("");
     private final AtomicReference<String> currentUrl = new AtomicReference<>("");
 
@@ -221,9 +222,6 @@ public final class BrowserSession implements AutoCloseable {
 
     private void handleAudio(String request) {
         Consumer<AudioChunk> consumer = this.audioConsumer;
-        if (consumer == null) {
-            return;
-        }
         try {
             int separator = request.indexOf(':', "audio:".length());
             if (separator < 0) {
@@ -234,7 +232,14 @@ public final class BrowserSession implements AutoCloseable {
             ShortBuffer samples = ByteBuffer.wrap(pcm).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer();
             short[] values = new short[samples.remaining()];
             samples.get(values);
-            consumer.accept(new AudioChunk(values, sampleRate));
+            int chunk = this.audioChunkCount.incrementAndGet();
+            if (chunk == 1 || chunk % 100 == 0) {
+                Boxier.LOGGER.info("Browser audio chunks={} samples={} rate={} consumer={}", chunk, values.length,
+                        sampleRate, consumer != null);
+            }
+            if (consumer != null) {
+                consumer.accept(new AudioChunk(values, sampleRate));
+            }
         } catch (Exception exception) {
             Boxier.LOGGER.warn("Failed to decode browser audio", exception);
         }

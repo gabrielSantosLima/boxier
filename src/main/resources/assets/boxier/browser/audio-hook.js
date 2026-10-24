@@ -6,6 +6,8 @@
 
   const state = {
     contexts: new WeakSet(),
+    captures: new Set(),
+    hookedElements: new WeakSet(),
     elements: new WeakSet(),
     sentChunks: 0,
     sentSamples: 0,
@@ -77,6 +79,8 @@
     silent.gain.value = 0;
     processor.connect(silent);
     silent.connect(ctx.destination);
+    state.captures.add(processor);
+    state.captures.add(silent);
 
     processor.onaudioprocess = (event) => {
       const input = event.inputBuffer;
@@ -105,6 +109,96 @@
     return processor;
   };
 
+  const disconnectCapture = (capture) => {
+    try {
+      capture.source.disconnect();
+    } catch (error) {
+      state.errors.push(String(error));
+    }
+    try {
+      capture.processor.disconnect();
+    } catch (error) {
+      state.errors.push(String(error));
+    }
+    try {
+      capture.ctx.close();
+    } catch (error) {
+      state.errors.push(String(error));
+    }
+    state.captures.delete(capture);
+  };
+
+  const captureElement = (element, force) => {
+    if (!element || typeof element.captureStream !== 'function') {
+      return;
+    }
+    hookElement(element);
+    const existing = state.elements.has(element) ? element.__boxierCapture : null;
+    if (existing && !force) {
+      return;
+    }
+    if (existing) {
+      disconnectCapture(existing);
+    }
+
+    const connect = () => {
+      try {
+        const stream = element.captureStream();
+        const tracks = stream ? stream.getAudioTracks() : [];
+        if (tracks.length === 0) {
+          return false;
+        }
+        let ctx;
+        try {
+          ctx = new AudioContext({ sampleRate: 48000 });
+        } catch (error) {
+          ctx = new AudioContext();
+        }
+        const source = ctx.createMediaStreamSource(stream);
+        const processor = setupTap(ctx);
+        if (!processor) {
+          return false;
+        }
+        source.connect(processor);
+        const capture = { ctx, source, processor, stream };
+        element.__boxierCapture = capture;
+        state.elements.add(element);
+        state.captures.add(capture);
+        for (const track of tracks) {
+          track.addEventListener('ended', () => {
+            if (element.__boxierCapture === capture) {
+              element.__boxierCapture = null;
+              disconnectCapture(capture);
+            }
+          });
+        }
+        return true;
+      } catch (error) {
+        state.errors.push(String(error));
+        return false;
+      }
+    };
+
+    if (!connect()) {
+      element.addEventListener('playing', () => captureElement(element, true), { once: true });
+    }
+  };
+
+  const hookElement = (element) => {
+    if (state.hookedElements.has(element)) {
+      return;
+    }
+    state.hookedElements.add(element);
+    element.addEventListener('playing', () => captureElement(element, true));
+    element.addEventListener('emptied', () => {
+      const capture = element.__boxierCapture;
+      if (capture) {
+        element.__boxierCapture = null;
+        disconnectCapture(capture);
+      }
+    });
+  };
+
   const tapDestinationConnections = () => {
     const proto = window.AudioNode && AudioNode.prototype;
     if (!proto || !proto.connect) {
@@ -125,45 +219,6 @@
       }
       return result;
     };
-  };
-
-  const captureElement = (element) => {
-    if (!element || state.elements.has(element)) {
-      return;
-    }
-    if (typeof element.captureStream !== 'function') {
-      return;
-    }
-    state.elements.add(element);
-
-    const connect = () => {
-      try {
-        const stream = element.captureStream();
-        const tracks = stream ? stream.getAudioTracks() : [];
-        if (tracks.length === 0) {
-          return false;
-        }
-        let ctx;
-        try {
-          ctx = new AudioContext({ sampleRate: 48000 });
-        } catch (error) {
-          ctx = new AudioContext();
-        }
-        const source = ctx.createMediaStreamSource(stream);
-        const tap = setupTap(ctx);
-        if (tap) {
-          source.connect(tap);
-        }
-        return true;
-      } catch (error) {
-        state.errors.push(String(error));
-        return false;
-      }
-    };
-
-    if (!connect()) {
-      element.addEventListener('playing', connect, { once: true });
-    }
   };
 
   const scan = () => {

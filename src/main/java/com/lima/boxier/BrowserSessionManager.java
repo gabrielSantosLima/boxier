@@ -223,6 +223,7 @@ public final class BrowserSessionManager {
     }
 
     private static void start(Entry entry) {
+        Boxier.LOGGER.info("Starting browser session at {}", entry.pos);
         int[] viewport = viewportFor(entry.level, entry.pos);
         entry.session = BrowserSession.open(entry.url, viewport[0], viewport[1]);
         entry.session.whenComplete((session, throwable) -> {
@@ -312,6 +313,9 @@ public final class BrowserSessionManager {
             }
             try {
                 for (byte[] frame : encoder.encode(chunk.samples(), chunk.sampleRate())) {
+                    if (++entry.audioFrames <= 3) {
+                        Boxier.LOGGER.info("Sending browser audio frame {} bytes at {}", frame.length, entry.pos);
+                    }
                     PacketDistributor.sendToPlayersNear(entry.level, null, entry.pos.getX() + 0.5,
                             entry.pos.getY() + 0.5, entry.pos.getZ() + 0.5, AUDIO_RADIUS,
                             new BrowserAudioPayload(entry.pos, frame));
@@ -441,6 +445,7 @@ public final class BrowserSessionManager {
         private String url = "about:blank";
         private int sequence;
         private volatile boolean encoding;
+        private int audioFrames;
         private BrowserOpusEncoder audioEncoder;
 
         private Entry(ServerLevel level, BlockPos pos) {

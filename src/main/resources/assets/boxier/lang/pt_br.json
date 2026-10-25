@@ -8,8 +8,8 @@
   "boxier.browser.url": "URL",
   "boxier.browser.go": "Ir",
   "boxier.browser.size_title": "Tamanho do Navegador",
-  "boxier.browser.width": "Largura",
-  "boxier.browser.height": "Altura",
+  "boxier.browser.width": "Largura (1-64)",
+  "boxier.browser.height": "Altura (1-64)",
   "boxier.browser.save": "Salvar",
   "boxier.browser.volume": "Volume: %s%%",
 

@@ -15,7 +15,7 @@ import net.minecraft.world.level.storage.ValueOutput;
 public class BrowserBlockEntity extends BlockEntity {
     public static final int DEFAULT_SIZE = 10;
     public static final int MIN_SIZE = 1;
-    public static final int MAX_SIZE = 25;
+    public static final int MAX_SIZE = 64;
 
     private int displayWidth = DEFAULT_SIZE;
     private int displayHeight = DEFAULT_SIZE;

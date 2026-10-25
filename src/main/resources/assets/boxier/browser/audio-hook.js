@@ -38,14 +38,7 @@
     });
   };
 
-  window.addEventListener('pointerdown', () => {
-    resumeBridges();
-    document.querySelectorAll('audio,video').forEach((element) => {
-      if (element.currentSrc && isVisible(element)) {
-        ensurePlayback(element);
-      }
-    });
-  }, true);
+  window.addEventListener('pointerdown', resumeBridges, true);
   window.addEventListener('keydown', resumeBridges, true);
   setInterval(resumeBridges, 1000);
 
@@ -380,7 +373,6 @@
       return;
     }
     hookElement(element);
-    ensurePlayback(element);
 
     const existing = element.__boxierCapture || null;
     if (existing) {
@@ -389,6 +381,8 @@
       }
       return;
     }
+
+    ensurePlayback(element);
 
     const connect = () => {
       try {

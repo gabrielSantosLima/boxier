@@ -1,0 +1,110 @@
+name: Publish to CurseForge
+description: Upload the built mod jar to CurseForge using the official upload API.
+
+inputs:
+  tag:
+    description: GitHub release tag (for example, v1.2.3).
+    required: true
+  project_id:
+    description: CurseForge numeric project id.
+    required: true
+  token:
+    description: CurseForge API token.
+    required: true
+  file:
+    description: Optional path to the jar. Defaults to build/libs/boxier-<version>.jar.
+    required: false
+    default: ""
+  game_endpoint:
+    description: CurseForge game subdomain.
+    required: false
+    default: minecraft
+
+runs:
+  using: composite
+  steps:
+    - name: Upload to CurseForge
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        TAG: ${{ inputs.tag }}
+        PROJECT_ID: ${{ inputs.project_id }}
+        TOKEN: ${{ inputs.token }}
+        FILE_INPUT: ${{ inputs.file }}
+        GAME_ENDPOINT: ${{ inputs.game_endpoint }}
+      run: |
+        set -euo pipefail
+        echo "::add-mask::${TOKEN}"
+
+        if [ -z "${PROJECT_ID}" ]; then
+          echo "CF_PROJECT_ID secret is not set"
+          exit 1
+        fi
+
+        VERSION="${TAG#v}"
+        JAR="${FILE_INPUT:-build/libs/boxier-${VERSION}.jar}"
+
+        if [ ! -f "${JAR}" ]; then
+          echo "Mod jar not found: ${JAR}"
+          exit 1
+        fi
+
+        gh release view "${TAG}" --json body --jq .body > "${RUNNER_TEMP}/changelog.md"
+
+        if [[ "${VERSION}" == *-alpha* ]]; then
+          RELEASE_TYPE="alpha"
+        elif [[ "${VERSION}" == *-* ]]; then
+          RELEASE_TYPE="beta"
+        else
+          RELEASE_TYPE="release"
+        fi
+
+        curl -fsSL \
+          -H "X-Api-Token: ${TOKEN}" \
+          "https://${GAME_ENDPOINT}.curseforge.com/api/game/versions" \
+          -o "${RUNNER_TEMP}/cf_versions.json"
+
+        MC_ID=$(jq -r '[.[] | select(.name == "26.3" and .gameVersionTypeID == 88556)][0].id // empty' "${RUNNER_TEMP}/cf_versions.json")
+        if [ -z "${MC_ID}" ]; then
+          MC_ID=$(jq -r '[.[] | select(.name == "26.3")][0].id // empty' "${RUNNER_TEMP}/cf_versions.json")
+        fi
+
+        NEOFORGE_ID=$(jq -r '[.[] | select(.name == "NeoForge" and .gameVersionTypeID == 68441)][0].id // empty' "${RUNNER_TEMP}/cf_versions.json")
+        if [ -z "${NEOFORGE_ID}" ]; then
+          NEOFORGE_ID=$(jq -r '[.[] | select(.name == "NeoForge")][0].id // empty' "${RUNNER_TEMP}/cf_versions.json")
+        fi
+
+        if [ -z "${MC_ID}" ] || [ -z "${NEOFORGE_ID}" ]; then
+          echo "Could not resolve CurseForge game versions (Minecraft 26.3 / NeoForge)"
+          exit 1
+        fi
+
+        jq -n \
+          --rawfile changelog "${RUNNER_TEMP}/changelog.md" \
+          --arg display_name "Boxier ${VERSION}" \
+          --arg release_type "${RELEASE_TYPE}" \
+          --argjson game_versions "[${MC_ID},${NEOFORGE_ID}]" \
+          '{
+            changelog: $changelog,
+            changelogType: "markdown",
+            displayName: $display_name,
+            releaseType: $release_type,
+            gameVersions: $game_versions
+          }' > "${RUNNER_TEMP}/metadata.json"
+
+        HTTP_STATUS=$(curl -sS \
+          -o "${RUNNER_TEMP}/cf_response.json" \
+          -w "%{http_code}" \
+          -X POST \
+          "https://${GAME_ENDPOINT}.curseforge.com/api/projects/${PROJECT_ID}/upload-file" \
+          -H "X-Api-Token: ${TOKEN}" \
+          -F "metadata=@${RUNNER_TEMP}/metadata.json;type=application/json" \
+          -F "file=@${JAR}")
+
+        if [ "${HTTP_STATUS}" -lt 200 ] || [ "${HTTP_STATUS}" -ge 300 ]; then
+          echo "CurseForge upload failed with HTTP ${HTTP_STATUS}"
+          cat "${RUNNER_TEMP}/cf_response.json"
+          exit 1
+        fi
+
+        jq -r '"CurseForge file id: " + (.id | tostring)' "${RUNNER_TEMP}/cf_response.json"

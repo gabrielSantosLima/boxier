@@ -70,3 +70,11 @@ jobs:
             exit 1
           fi
           gh release upload "$TAG" "${files[@]}" --clobber
+
+      - name: Publish to CurseForge
+        if: ${{ inputs.tag != '' }}
+        uses: ./.github/actions/publish-curseforge
+        with:
+          tag: ${{ inputs.tag }}
+          project_id: ${{ secrets.CF_PROJECT_ID }}
+          token: ${{ secrets.CF_API_TOKEN }}

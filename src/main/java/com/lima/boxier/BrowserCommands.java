@@ -108,6 +108,5 @@ public final class BrowserCommands {
     @SubscribeEvent
     public static void onServerStopping(ServerStoppingEvent event) {
         BrowserSessionManager.shutdown();
-        BrowserRuntime.shutdown();
     }
 }

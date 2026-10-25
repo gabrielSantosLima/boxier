@@ -115,7 +115,7 @@ public final class BrowserAudioManager {
             double dy = player.getY() - (this.pos.getY() + 0.5);
             double dz = player.getZ() - (this.pos.getZ() + 0.5);
             double distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
-            float linear = (float) Math.max(0.0, Math.min(1.0, 1.0 - distance / 32.0));
+            float linear = (float) Math.max(0.0, Math.min(1.0, 1.0 - distance / 48.0));
             float gain = linear * linear * (3.0F - 2.0F * linear);
             AL10.alSourcef(this.source, AL10.AL_GAIN, gain);
         }

@@ -14,6 +14,7 @@ import net.neoforged.fml.loading.FMLPaths;
 public final class BrowserRuntime {
     static {
         System.setProperty("java.awt.headless", "false");
+        Runtime.getRuntime().addShutdownHook(new Thread(BrowserRuntime::shutdown, "Boxier-Browser-Shutdown"));
     }
 
     private static final Object LOCK = new Object();

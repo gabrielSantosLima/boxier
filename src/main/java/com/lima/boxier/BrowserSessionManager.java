@@ -19,7 +19,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
 public final class BrowserSessionManager {
     private static final double VIEW_RADIUS = 64.0;
     private static final double CONTROL_RADIUS = 32.0;
-    private static final double AUDIO_RADIUS = 32.0;
+    private static final double AUDIO_RADIUS = 64.0;
     private static final int VIEWPORT_MAX_DIMENSION = 1280;
     private static final Gson GSON = new Gson();
 
@@ -223,8 +223,6 @@ public final class BrowserSessionManager {
             }
         }
         SESSIONS.clear();
-        ENCODER.shutdownNow();
-        AUDIO_ENCODER.shutdownNow();
     }
 
     private static void start(Entry entry) {

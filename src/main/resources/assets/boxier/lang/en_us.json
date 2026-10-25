@@ -11,6 +11,9 @@
   "boxier.browser.width": "Width (1-64)",
   "boxier.browser.height": "Height (1-64)",
   "boxier.browser.save": "Save",
+  "boxier.browser.width_short": "W",
+  "boxier.browser.height_short": "H",
+  "boxier.browser.apply": "Apply",
   "boxier.browser.volume": "Volume: %s%%",
 
   "boxier.framer.title": "Framer",

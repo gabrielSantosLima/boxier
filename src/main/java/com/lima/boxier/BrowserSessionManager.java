@@ -83,9 +83,12 @@ public final class BrowserSessionManager {
         if (entry == null) {
             return;
         }
+        int[] viewport = viewportFor(level, pos);
         synchronized (entry) {
-            closeSession(entry);
-            start(entry);
+            CompletableFuture<BrowserSession> future = entry.session;
+            if (future != null) {
+                future.thenAccept(session -> session.resize(viewport[0], viewport[1]));
+            }
         }
     }
 

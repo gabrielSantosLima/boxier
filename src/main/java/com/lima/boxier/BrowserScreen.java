@@ -18,6 +18,8 @@ public class BrowserScreen extends Screen {
     private final BlockPos pos;
 
     private EditBox urlBox;
+    private EditBox widthBox;
+    private EditBox heightBox;
     private boolean granted;
     private String status = "Requesting control...";
 
@@ -61,6 +63,27 @@ public class BrowserScreen extends Screen {
         this.addRenderableWidget(new VolumeSlider(8, this.height - 30, 140, 20,
                 BrowserAudioManager.getVolume()));
 
+        int displayWidth = BrowserBlockEntity.DEFAULT_SIZE;
+        int displayHeight = BrowserBlockEntity.DEFAULT_SIZE;
+        if (this.minecraft.level.getBlockEntity(this.pos) instanceof BrowserBlockEntity browser) {
+            displayWidth = browser.getDisplayWidth();
+            displayHeight = browser.getDisplayHeight();
+        }
+
+        this.widthBox = new EditBox(this.font, 162, this.height - 30, 50, 20,
+                Component.translatable("boxier.browser.width_short"));
+        this.widthBox.setValue(Integer.toString(displayWidth));
+        this.addRenderableWidget(this.widthBox);
+
+        this.heightBox = new EditBox(this.font, 226, this.height - 30, 50, 20,
+                Component.translatable("boxier.browser.height_short"));
+        this.heightBox.setValue(Integer.toString(displayHeight));
+        this.addRenderableWidget(this.heightBox);
+
+        this.addRenderableWidget(Button.builder(Component.translatable("boxier.browser.apply"), button -> this.applySize())
+                .bounds(282, this.height - 30, 60, 20)
+                .build());
+
         this.urlBox.setFocused(false);
         this.setFocused(null);
         ClientPacketDistributor.sendToServer(new BrowserControlPayload(this.pos, false));
@@ -93,6 +116,30 @@ public class BrowserScreen extends Screen {
                 this.urlBox.getValue().trim()));
     }
 
+    private void applySize() {
+        int width = parseSize(this.widthBox.getValue(), BrowserBlockEntity.DEFAULT_SIZE);
+        int height = parseSize(this.heightBox.getValue(), BrowserBlockEntity.DEFAULT_SIZE);
+        this.widthBox.setValue(Integer.toString(width));
+        this.heightBox.setValue(Integer.toString(height));
+        this.widthBox.setFocused(false);
+        this.heightBox.setFocused(false);
+        this.setFocused(null);
+        ClientPacketDistributor.sendToServer(new UpdateBrowserSizePayload(this.pos, width, height));
+    }
+
+    private static int parseSize(String value, int fallback) {
+        try {
+            int parsed = Integer.parseInt(value.trim());
+            return Math.max(BrowserBlockEntity.MIN_SIZE, Math.min(BrowserBlockEntity.MAX_SIZE, parsed));
+        } catch (NumberFormatException exception) {
+            return fallback;
+        }
+    }
+
+    private boolean isTextInputFocused() {
+        return this.urlBox.isFocused() || this.widthBox.isFocused() || this.heightBox.isFocused();
+    }
+
     private void sendAction(int action) {
         ClientPacketDistributor.sendToServer(new BrowserActionPayload(this.pos, action, ""));
     }
@@ -118,6 +165,10 @@ public class BrowserScreen extends Screen {
                     this.imageY + this.imageHeight / 2, 0xFFFFFF);
         }
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
+        graphics.text(this.font, Component.translatable("boxier.browser.width_short"), 152, this.height - 25, 0xFFFFFF,
+                false);
+        graphics.text(this.font, Component.translatable("boxier.browser.height_short"), 216, this.height - 25, 0xFFFFFF,
+                false);
     }
 
     private void layout() {
@@ -246,9 +297,13 @@ public class BrowserScreen extends Screen {
             return true;
         }
 
-        if (this.urlBox.isFocused()) {
+        if (this.isTextInputFocused()) {
             if (event.keycode() == SDLKeycode.SDLK_RETURN || event.keycode() == SDLKeycode.SDLK_RETURN2) {
-                this.navigate();
+                if (this.widthBox.isFocused() || this.heightBox.isFocused()) {
+                    this.applySize();
+                } else {
+                    this.navigate();
+                }
                 return true;
             }
             if (super.keyPressed(event)) {
@@ -267,7 +322,7 @@ public class BrowserScreen extends Screen {
 
     @Override
     public boolean keyReleased(KeyEvent event) {
-        if (this.urlBox.isFocused()) {
+        if (this.isTextInputFocused()) {
             return super.keyReleased(event);
         }
         sendKey(BrowserKeyPayload.UP, event, "");
@@ -276,7 +331,7 @@ public class BrowserScreen extends Screen {
 
     @Override
     public boolean charTyped(CharacterEvent event) {
-        if (this.urlBox.isFocused()) {
+        if (this.isTextInputFocused()) {
             return super.charTyped(event);
         }
         if (!this.granted || event.codepoint() <= 127) {

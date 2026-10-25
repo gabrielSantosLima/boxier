@@ -83,7 +83,10 @@ public final class BrowserTextureCache {
         try {
             int width = image.getWidth();
             int height = image.getHeight();
-            if (entry.texture == null) {
+            if (entry.texture == null || entry.width != width || entry.height != height) {
+                if (entry.id != null) {
+                    Minecraft.getInstance().getTextureManager().release(entry.id);
+                }
                 Identifier id = Identifier.fromNamespaceAndPath(Boxier.MODID, "browser/" + Integer.toHexString(key.hashCode()));
                 DynamicTexture texture = new DynamicTexture(() -> "boxier:browser", image);
                 Minecraft.getInstance().getTextureManager().register(id, texture);

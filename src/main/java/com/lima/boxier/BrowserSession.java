@@ -50,8 +50,8 @@ public final class BrowserSession implements AutoCloseable {
     }
 
     private final CefApp app;
-    private final int width;
-    private final int height;
+    private volatile int width;
+    private volatile int height;
     private final CountDownLatch firstFrame = new CountDownLatch(1);
     private final AtomicInteger frameCount = new AtomicInteger();
     private final AtomicInteger audioChunkCount = new AtomicInteger();
@@ -307,6 +307,22 @@ public final class BrowserSession implements AutoCloseable {
 
     public CefDevToolsClient getDevTools() {
         return this.devTools;
+    }
+
+    public void resize(int width, int height) {
+        this.width = width;
+        this.height = height;
+        SwingUtilities.invokeLater(() -> {
+            JFrame currentFrame = this.frame;
+            if (currentFrame != null) {
+                currentFrame.setSize(width, height);
+                currentFrame.validate();
+            }
+            if (this.browser != null) {
+                Component component = this.browser.getUIComponent();
+                component.setSize(width, height);
+            }
+        });
     }
 
     public void loadUrl(String url) {

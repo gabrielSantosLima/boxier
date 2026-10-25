@@ -11,6 +11,9 @@
   "boxier.browser.width": "Largura (1-64)",
   "boxier.browser.height": "Altura (1-64)",
   "boxier.browser.save": "Salvar",
+  "boxier.browser.width_short": "L",
+  "boxier.browser.height_short": "A",
+  "boxier.browser.apply": "Aplicar",
   "boxier.browser.volume": "Volume: %s%%",
 
   "boxier.framer.title": "Moldura",

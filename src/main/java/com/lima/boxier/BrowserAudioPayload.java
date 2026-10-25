@@ -32,6 +32,6 @@ public record BrowserAudioPayload(BlockPos pos, byte[] data) implements CustomPa
     }
 
     public static void handle(BrowserAudioPayload payload, IPayloadContext context) {
-        context.enqueueWork(() -> BrowserClient.onAudio(payload));
+        BrowserClient.onAudio(payload);
     }
 }

@@ -55,9 +55,7 @@ public final class BrowserClient {
     }
 
     public static void onAudio(BrowserAudioPayload payload) {
-        if (Minecraft.getInstance().level != null) {
-            BrowserAudioManager.play(Minecraft.getInstance().level, payload.pos(), payload.data());
-        }
+        BrowserAudioManager.enqueue(payload.pos(), payload.data());
     }
 
     @SubscribeEvent

@@ -19,6 +19,7 @@ public class BrowserBlockEntity extends BlockEntity {
 
     private int displayWidth = DEFAULT_SIZE;
     private int displayHeight = DEFAULT_SIZE;
+    private boolean projection360;
 
     public BrowserBlockEntity(BlockPos pos, BlockState state) {
         super(Boxier.BROWSER_BLOCK_ENTITY.get(), pos, state);
@@ -30,6 +31,21 @@ public class BrowserBlockEntity extends BlockEntity {
 
     public int getDisplayHeight() {
         return this.displayHeight;
+    }
+
+    public boolean isProjection360() {
+        return this.projection360;
+    }
+
+    public void setProjection360(boolean projection360) {
+        if (this.projection360 == projection360) {
+            return;
+        }
+        this.projection360 = projection360;
+        this.setChanged();
+        if (this.level != null && !this.level.isClientSide()) {
+            this.level.sendBlockUpdated(this.worldPosition, this.getBlockState(), this.getBlockState(), Block.UPDATE_CLIENTS);
+        }
     }
 
     public void setSize(int width, int height) {
@@ -46,6 +62,7 @@ public class BrowserBlockEntity extends BlockEntity {
         super.saveAdditional(output);
         output.putInt("display_width", this.displayWidth);
         output.putInt("display_height", this.displayHeight);
+        output.putBoolean("projection_360", this.projection360);
     }
 
     @Override
@@ -53,6 +70,7 @@ public class BrowserBlockEntity extends BlockEntity {
         super.loadAdditional(input);
         this.displayWidth = Math.max(MIN_SIZE, Math.min(MAX_SIZE, input.getIntOr("display_width", DEFAULT_SIZE)));
         this.displayHeight = Math.max(MIN_SIZE, Math.min(MAX_SIZE, input.getIntOr("display_height", DEFAULT_SIZE)));
+        this.projection360 = input.getBooleanOr("projection_360", false);
     }
 
     @Override

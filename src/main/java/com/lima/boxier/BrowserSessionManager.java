@@ -89,6 +89,16 @@ public final class BrowserSessionManager {
         }
     }
 
+    public static void setProjection(ServerLevel level, BlockPos pos, ServerPlayer player, boolean projection360) {
+        Entry entry = SESSIONS.get(new SessionKey(level.dimension(), pos));
+        if (entry == null || !player.getUUID().equals(entry.controller)) {
+            return;
+        }
+        if (level.getBlockEntity(pos) instanceof BrowserBlockEntity browser) {
+            browser.setProjection360(projection360);
+        }
+    }
+
     public static void remove(ServerLevel level, BlockPos pos) {
         Entry entry = SESSIONS.remove(new SessionKey(level.dimension(), pos));
         if (entry != null) {

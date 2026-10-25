@@ -21,6 +21,9 @@ import org.jetbrains.annotations.Nullable;
 public class BrowserBlockEntityRenderer implements BlockEntityRenderer<BrowserBlockEntity, BrowserRenderState> {
     private static final float Z = 1.002F;
     private static final float CURSOR_SIZE = 0.25F;
+    private static final float SPHERE_RADIUS = 8.0F;
+    private static final int SPHERE_LATITUDES = 24;
+    private static final int SPHERE_LONGITUDES = 48;
     private static final Identifier CURSOR_TEXTURE = Identifier.fromNamespaceAndPath(Boxier.MODID, "gui/browser_cursor");
 
     public BrowserBlockEntityRenderer(BlockEntityRendererProvider.Context context) {
@@ -38,6 +41,7 @@ public class BrowserBlockEntityRenderer implements BlockEntityRenderer<BrowserBl
         state.displayWidth = blockEntity.getDisplayWidth();
         state.displayHeight = blockEntity.getDisplayHeight();
         state.yRot = blockEntity.getBlockState().getValue(BrowserBlock.FACING).toYRot();
+        state.projection360 = blockEntity.isProjection360();
 
         BrowserTextureCache.Entry entry = BrowserTextureCache.get(blockEntity.getLevel(), blockEntity.getBlockPos());
         state.texture = entry == null ? null : entry.id();
@@ -59,6 +63,11 @@ public class BrowserBlockEntityRenderer implements BlockEntityRenderer<BrowserBl
 
         int light = state.lightCoords;
         RenderType textureType = RenderTypes.entityCutout(state.texture);
+
+        if (state.projection360) {
+            sphere(collector, poseStack, textureType, light);
+            return;
+        }
 
         float x1 = state.displayWidth;
         float y1 = state.displayHeight;
@@ -87,8 +96,59 @@ public class BrowserBlockEntityRenderer implements BlockEntityRenderer<BrowserBl
 
     @Override
     public AABB getRenderBoundingBox(BrowserBlockEntity blockEntity) {
+        if (blockEntity.isProjection360()) {
+            return new AABB(blockEntity.getBlockPos()).inflate(SPHERE_RADIUS + 2.0);
+        }
         double extent = Math.max(blockEntity.getDisplayWidth(), blockEntity.getDisplayHeight()) + 2.0;
         return new AABB(blockEntity.getBlockPos()).inflate(extent);
+    }
+
+    private static void sphere(SubmitNodeCollector collector, PoseStack poseStack, RenderType type, int light) {
+        float centerX = 0.5F;
+        float centerY = 0.5F;
+        float centerZ = 0.5F;
+
+        collector.submitCustomGeometry(poseStack, type, (pose, buffer) -> {
+            for (int latitude = 0; latitude < SPHERE_LATITUDES; latitude++) {
+                double lat0 = Math.PI * latitude / SPHERE_LATITUDES;
+                double lat1 = Math.PI * (latitude + 1) / SPHERE_LATITUDES;
+                for (int longitude = 0; longitude < SPHERE_LONGITUDES; longitude++) {
+                    double lon0 = Math.PI * 2.0 * longitude / SPHERE_LONGITUDES;
+                    double lon1 = Math.PI * 2.0 * (longitude + 1) / SPHERE_LONGITUDES;
+
+                    float x00 = centerX + (float) (Math.sin(lat0) * Math.cos(lon0)) * SPHERE_RADIUS;
+                    float y00 = centerY + (float) Math.cos(lat0) * SPHERE_RADIUS;
+                    float z00 = centerZ + (float) (Math.sin(lat0) * Math.sin(lon0)) * SPHERE_RADIUS;
+                    float x01 = centerX + (float) (Math.sin(lat0) * Math.cos(lon1)) * SPHERE_RADIUS;
+                    float y01 = centerY + (float) Math.cos(lat0) * SPHERE_RADIUS;
+                    float z01 = centerZ + (float) (Math.sin(lat0) * Math.sin(lon1)) * SPHERE_RADIUS;
+                    float x11 = centerX + (float) (Math.sin(lat1) * Math.cos(lon1)) * SPHERE_RADIUS;
+                    float y11 = centerY + (float) Math.cos(lat1) * SPHERE_RADIUS;
+                    float z11 = centerZ + (float) (Math.sin(lat1) * Math.sin(lon1)) * SPHERE_RADIUS;
+                    float x10 = centerX + (float) (Math.sin(lat1) * Math.cos(lon0)) * SPHERE_RADIUS;
+                    float y10 = centerY + (float) Math.cos(lat1) * SPHERE_RADIUS;
+                    float z10 = centerZ + (float) (Math.sin(lat1) * Math.sin(lon0)) * SPHERE_RADIUS;
+
+                    float u0 = (float) longitude / SPHERE_LONGITUDES;
+                    float u1 = (float) (longitude + 1) / SPHERE_LONGITUDES;
+                    float v0 = (float) latitude / SPHERE_LATITUDES;
+                    float v1 = (float) (latitude + 1) / SPHERE_LATITUDES;
+
+                    vertex(buffer, pose, x00, y00, z00, u0, v0, light,
+                            -(float) (Math.sin(lat0) * Math.cos(lon0)), -(float) Math.cos(lat0),
+                            -(float) (Math.sin(lat0) * Math.sin(lon0)));
+                    vertex(buffer, pose, x01, y01, z01, u1, v0, light,
+                            -(float) (Math.sin(lat0) * Math.cos(lon1)), -(float) Math.cos(lat0),
+                            -(float) (Math.sin(lat0) * Math.sin(lon1)));
+                    vertex(buffer, pose, x11, y11, z11, u1, v1, light,
+                            -(float) (Math.sin(lat1) * Math.cos(lon1)), -(float) Math.cos(lat1),
+                            -(float) (Math.sin(lat1) * Math.sin(lon1)));
+                    vertex(buffer, pose, x10, y10, z10, u0, v1, light,
+                            -(float) (Math.sin(lat1) * Math.cos(lon0)), -(float) Math.cos(lat1),
+                            -(float) (Math.sin(lat1) * Math.sin(lon0)));
+                }
+            }
+        });
     }
 
     private static void quad(SubmitNodeCollector collector, PoseStack poseStack, RenderType type, int light,

@@ -18,6 +18,8 @@ public class BrowserScreen extends Screen {
     private final BlockPos pos;
 
     private EditBox urlBox;
+    private Button projectionButton;
+    private boolean projection360;
     private boolean granted;
     private String status = "Requesting control...";
 
@@ -35,6 +37,8 @@ public class BrowserScreen extends Screen {
     @Override
     protected void init() {
         super.init();
+        this.projection360 = this.minecraft.level.getBlockEntity(this.pos) instanceof BrowserBlockEntity browser
+                && browser.isProjection360();
 
         this.addRenderableWidget(Button.builder(Component.literal("<"), button -> this.sendAction(BrowserActionPayload.BACK))
                 .bounds(8, 4, 28, 20)
@@ -46,7 +50,13 @@ public class BrowserScreen extends Screen {
                 .bounds(72, 4, 28, 20)
                 .build());
 
-        this.urlBox = new EditBox(this.font, 110, 4, this.width - 200, 20, Component.translatable("boxier.browser.url"));
+        this.projectionButton = Button.builder(this.projectionMessage(), button -> this.toggleProjection())
+                .bounds(104, 4, 40, 20)
+                .build();
+        this.addRenderableWidget(this.projectionButton);
+
+        this.urlBox = new EditBox(this.font, 150, 4, Math.max(40, this.width - 240), 20,
+                Component.translatable("boxier.browser.url"));
         this.urlBox.setMaxLength(2048);
         this.urlBox.setValue("");
         this.addRenderableWidget(this.urlBox);
@@ -91,6 +101,16 @@ public class BrowserScreen extends Screen {
         this.setFocused(null);
         ClientPacketDistributor.sendToServer(new BrowserActionPayload(this.pos, BrowserActionPayload.NAVIGATE,
                 this.urlBox.getValue().trim()));
+    }
+
+    private Component projectionMessage() {
+        return Component.translatable(this.projection360 ? "boxier.browser.projection_on" : "boxier.browser.projection");
+    }
+
+    private void toggleProjection() {
+        this.projection360 = !this.projection360;
+        this.projectionButton.setMessage(this.projectionMessage());
+        ClientPacketDistributor.sendToServer(new UpdateBrowserProjectionPayload(this.pos, this.projection360));
     }
 
     private void sendAction(int action) {

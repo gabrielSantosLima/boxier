@@ -12,6 +12,8 @@
   "boxier.browser.height": "Height (1-64)",
   "boxier.browser.save": "Save",
   "boxier.browser.volume": "Volume: %s%%",
+  "boxier.browser.projection": "360",
+  "boxier.browser.projection_on": "360 ON",
 
   "boxier.framer.title": "Framer",
   "boxier.framer.url": "Image URL",

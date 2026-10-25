@@ -8,6 +8,7 @@ public class BrowserRenderState extends BlockEntityRenderState {
     public int displayWidth = BrowserBlockEntity.DEFAULT_SIZE;
     public int displayHeight = BrowserBlockEntity.DEFAULT_SIZE;
     public float yRot;
+    public boolean projection360;
     public boolean hasCursor;
     public float cursorX;
     public float cursorY;

@@ -12,6 +12,8 @@
   "boxier.browser.height": "Altura (1-64)",
   "boxier.browser.save": "Salvar",
   "boxier.browser.volume": "Volume: %s%%",
+  "boxier.browser.projection": "360",
+  "boxier.browser.projection_on": "360 ATIVO",
 
   "boxier.framer.title": "Moldura",
   "boxier.framer.url": "URL da Imagem",

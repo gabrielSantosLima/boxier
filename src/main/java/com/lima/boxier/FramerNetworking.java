@@ -23,6 +23,8 @@ public final class FramerNetworking {
         registrar.playToServer(BrowserKeyPayload.TYPE, BrowserKeyPayload.STREAM_CODEC, BrowserKeyPayload::handle);
         registrar.playToServer(BrowserActionPayload.TYPE, BrowserActionPayload.STREAM_CODEC,
                 BrowserActionPayload::handle);
+        registrar.playToServer(UpdateBrowserProjectionPayload.TYPE, UpdateBrowserProjectionPayload.STREAM_CODEC,
+                UpdateBrowserProjectionPayload::handle);
 
         registrar.playToClient(BrowserControlResponsePayload.TYPE, BrowserControlResponsePayload.STREAM_CODEC,
                 BrowserControlResponsePayload::handle);

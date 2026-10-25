@@ -39,8 +39,8 @@ public final class BrowserAudioManager {
     }
 
     private static final class Channel {
-        private static final int BUFFER_COUNT = 24;
-        private static final int MIN_BUFFERS = 6;
+        private static final int BUFFER_COUNT = 48;
+        private static final int MIN_BUFFERS = 12;
 
         private final BlockPos pos;
         private final Deque<Integer> freeBuffers = new ArrayDeque<>();
@@ -49,6 +49,7 @@ public final class BrowserAudioManager {
         private int[] buffers;
         private boolean loggedPacket;
         private long lastPacketAt;
+        private int packets;
 
         private Channel(BlockPos pos) {
             this.pos = pos;
@@ -58,12 +59,19 @@ public final class BrowserAudioManager {
             long now = System.currentTimeMillis();
             if (this.source != 0) {
                 int state = AL10.alGetSourcei(this.source, AL10.AL_SOURCE_STATE);
-                boolean silentLongEnough = this.lastPacketAt > 0 && now - this.lastPacketAt > 500;
-                if (state != AL10.AL_PLAYING && (silentLongEnough || this.freeBuffers.isEmpty())) {
+                long silence = this.lastPacketAt > 0 ? now - this.lastPacketAt : 0;
+                if (state != AL10.AL_PLAYING && silence > 2000) {
+                    Boxier.LOGGER.info("Reset browser audio channel at {} after {}ms of silence", this.pos, silence);
                     resetSource();
                 }
             }
             this.lastPacketAt = now;
+            int packetCount = ++this.packets;
+            if (packetCount % 100 == 0) {
+                int state = this.source == 0 ? -1 : AL10.alGetSourcei(this.source, AL10.AL_SOURCE_STATE);
+                Boxier.LOGGER.debug("Browser audio packets={} at {} state={} free={} queued={}", packetCount, this.pos,
+                        state, this.freeBuffers.size(), BUFFER_COUNT - this.freeBuffers.size());
+            }
             if (!ensureOpen()) {
                 return;
             }
@@ -73,7 +81,7 @@ public final class BrowserAudioManager {
             }
             if (!this.loggedPacket) {
                 this.loggedPacket = true;
-                Boxier.LOGGER.info("Browser audio packet received at {} samples={}", this.pos, samples.length);
+                Boxier.LOGGER.debug("Browser audio packet received at {} samples={}", this.pos, samples.length);
             }
 
             reclaim();
@@ -89,7 +97,7 @@ public final class BrowserAudioManager {
             pcm.flip();
 
             updateGain();
-            AL10.alBufferData(buffer, AL10.AL_FORMAT_MONO16, pcm, BrowserOpusEncoder.SAMPLE_RATE);
+            AL10.alBufferData(buffer, AL10.AL_FORMAT_STEREO16, pcm, BrowserOpusEncoder.SAMPLE_RATE);
             AL10.alSourceQueueBuffers(this.source, buffer);
             int queued = BUFFER_COUNT - this.freeBuffers.size();
             if (AL10.alGetSourcei(this.source, AL10.AL_SOURCE_STATE) != AL10.AL_PLAYING
@@ -145,7 +153,7 @@ public final class BrowserAudioManager {
                 return false;
             }
             try {
-                this.decoder = new BrowserOpusDecoder();
+                this.decoder = new BrowserOpusDecoder(2);
                 this.source = AL10.alGenSources();
                 this.buffers = new int[BUFFER_COUNT];
                 AL10.alGenBuffers(this.buffers);

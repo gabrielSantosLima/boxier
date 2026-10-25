@@ -52,11 +52,13 @@ public final class BrowserSessionManager {
 
         synchronized (entry) {
             if (entry.controller != null && !entry.controller.equals(player.getUUID())) {
+                Boxier.LOGGER.info("Browser control denied to {} at {} (in use)", player.getName().getString(), pos);
                 sendControlResponse(player, pos, false, "This browser is already in use", entry.url);
                 return;
             }
 
             entry.controller = player.getUUID();
+            Boxier.LOGGER.info("Browser control granted to {} at {}", player.getName().getString(), pos);
             if (entry.session == null) {
                 start(entry);
             }
@@ -145,8 +147,11 @@ public final class BrowserSessionManager {
             case BrowserActionPayload.NAVIGATE -> {
                 String url = normalizeUrl(payload.url());
                 if (url != null) {
+                    Boxier.LOGGER.info("Browser navigate to {} at {}", url, payload.pos());
                     entry.url = url;
                     session.loadUrl(url);
+                } else {
+                    Boxier.LOGGER.info("Browser navigate rejected input '{}' at {}", payload.url(), payload.pos());
                 }
             }
             case BrowserActionPayload.BACK -> session.goBack();
@@ -300,9 +305,12 @@ public final class BrowserSessionManager {
         AUDIO_ENCODER.execute(() -> {
             BrowserOpusEncoder encoder;
             synchronized (entry) {
-                if (entry.audioEncoder == null) {
+                if (entry.audioEncoder == null || entry.audioEncoder.getChannels() != chunk.channels()) {
                     try {
-                        entry.audioEncoder = new BrowserOpusEncoder();
+                        if (entry.audioEncoder != null) {
+                            entry.audioEncoder.close();
+                        }
+                        entry.audioEncoder = new BrowserOpusEncoder(chunk.channels());
                     } catch (Exception exception) {
                         Boxier.LOGGER.warn("Failed to create browser Opus encoder", exception);
                         entry.audioEncoder = null;
@@ -313,8 +321,10 @@ public final class BrowserSessionManager {
             }
             try {
                 for (byte[] frame : encoder.encode(chunk.samples(), chunk.sampleRate())) {
-                    if (++entry.audioFrames <= 3) {
-                        Boxier.LOGGER.info("Sending browser audio frame {} bytes at {}", frame.length, entry.pos);
+                    int frameCount = ++entry.audioFrames;
+                    if (frameCount <= 3 || frameCount % 100 == 0) {
+                        Boxier.LOGGER.debug("Sending browser audio frame {} ({} bytes) at {}", frameCount, frame.length,
+                                entry.pos);
                     }
                     PacketDistributor.sendToPlayersNear(entry.level, null, entry.pos.getX() + 0.5,
                             entry.pos.getY() + 0.5, entry.pos.getZ() + 0.5, AUDIO_RADIUS,

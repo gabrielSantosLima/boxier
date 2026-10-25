@@ -176,10 +176,6 @@ public class BrowserScreen extends Screen {
         super.mouseMoved(mouseX, mouseY);
         boolean inside = insideImage(mouseX, mouseY);
         this.mouseOverView = inside;
-        if (inside) {
-            this.urlBox.setFocused(false);
-            this.setFocused(null);
-        }
         if (this.granted && inside) {
             sendMouse(BrowserMousePayload.MOVE, mouseX, mouseY, 0, 0, 0.0F);
         }
@@ -246,7 +242,7 @@ public class BrowserScreen extends Screen {
             return true;
         }
 
-        if (!this.mouseOverView && this.urlBox.isFocused()) {
+        if (this.urlBox.isFocused()) {
             if (event.keycode() == SDLKeycode.SDLK_RETURN || event.keycode() == SDLKeycode.SDLK_RETURN2) {
                 this.navigate();
                 return true;
@@ -267,7 +263,7 @@ public class BrowserScreen extends Screen {
 
     @Override
     public boolean keyReleased(KeyEvent event) {
-        if (!this.mouseOverView && this.urlBox.isFocused()) {
+        if (this.urlBox.isFocused()) {
             return super.keyReleased(event);
         }
         sendKey(BrowserKeyPayload.UP, event, "");
@@ -276,7 +272,7 @@ public class BrowserScreen extends Screen {
 
     @Override
     public boolean charTyped(CharacterEvent event) {
-        if (!this.mouseOverView && this.urlBox.isFocused()) {
+        if (this.urlBox.isFocused()) {
             return super.charTyped(event);
         }
         if (!this.granted || event.codepoint() <= 127) {

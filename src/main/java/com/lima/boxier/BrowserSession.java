@@ -20,6 +20,7 @@ import javax.swing.SwingUtilities;
 
 import org.cef.CefApp;
 import org.cef.CefClient;
+import org.cef.CefSettings;
 import org.cef.browser.CefBrowser;
 import org.cef.browser.CefDevToolsClient;
 import org.cef.browser.CefFrame;
@@ -38,14 +39,14 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 public final class BrowserSession implements AutoCloseable {
-    private static final int SCREENCAST_MAX_DIMENSION = 640;
-    private static final int SCREENCAST_QUALITY = 50;
-    private static final int SCREENCAST_INTERVAL_MS = 66;
+    private static final int SCREENCAST_MAX_DIMENSION = 960;
+    private static final int SCREENCAST_QUALITY = 65;
+    private static final int SCREENCAST_INTERVAL_MS = 33;
 
     public record Frame(byte[] jpeg, int width, int height, long timestamp) {
     }
 
-    public record AudioChunk(short[] samples, int sampleRate) {
+    public record AudioChunk(short[] samples, int sampleRate, int channels) {
     }
 
     private final CefApp app;
@@ -94,12 +95,23 @@ public final class BrowserSession implements AutoCloseable {
                 public void onTitleChange(CefBrowser browser, String newTitle) {
                     title.set(newTitle);
                 }
+
+                @Override
+                public boolean onConsoleMessage(CefBrowser browser, CefSettings.LogSeverity level, String message,
+                        String source, int line) {
+                    if (message != null && message.startsWith("[Boxier]")) {
+                        Boxier.LOGGER.info("Browser JS: {}", message);
+                        return true;
+                    }
+                    return false;
+                }
             });
             this.client.addLoadHandler(new CefLoadHandlerAdapter() {
                 @Override
                 public void onLoadEnd(CefBrowser browser, CefFrame frame, int httpStatusCode) {
                     if (frame.isMain()) {
                         currentUrl.set(frame.getURL());
+                        Boxier.LOGGER.debug("Browser loaded {} (status {})", frame.getURL(), httpStatusCode);
                     }
                 }
 
@@ -223,22 +235,34 @@ public final class BrowserSession implements AutoCloseable {
     private void handleAudio(String request) {
         Consumer<AudioChunk> consumer = this.audioConsumer;
         try {
-            int separator = request.indexOf(':', "audio:".length());
-            if (separator < 0) {
+            int rateEnd = request.indexOf(':', "audio:".length());
+            if (rateEnd < 0) {
                 return;
             }
-            int sampleRate = Integer.parseInt(request.substring("audio:".length(), separator));
-            byte[] pcm = Base64.getDecoder().decode(request.substring(separator + 1));
+            int channelsEnd = request.indexOf(':', rateEnd + 1);
+            if (channelsEnd < 0) {
+                return;
+            }
+            int sampleRate = Integer.parseInt(request.substring("audio:".length(), rateEnd));
+            int channels = Integer.parseInt(request.substring(rateEnd + 1, channelsEnd));
+            if (channels != 1 && channels != 2) {
+                return;
+            }
+            byte[] pcm = Base64.getDecoder().decode(request.substring(channelsEnd + 1));
             ShortBuffer samples = ByteBuffer.wrap(pcm).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer();
             short[] values = new short[samples.remaining()];
             samples.get(values);
             int chunk = this.audioChunkCount.incrementAndGet();
-            if (chunk == 1 || chunk % 100 == 0) {
-                Boxier.LOGGER.info("Browser audio chunks={} samples={} rate={} consumer={}", chunk, values.length,
-                        sampleRate, consumer != null);
+            if (chunk <= 5 || chunk % 100 == 0) {
+                int peak = 0;
+                for (short value : values) {
+                    peak = Math.max(peak, Math.abs((int) value));
+                }
+                Boxier.LOGGER.debug("Browser audio chunk={} peak={} samples={} rate={} channels={} consumer={}", chunk,
+                        peak, values.length, sampleRate, channels, consumer != null);
             }
             if (consumer != null) {
-                consumer.accept(new AudioChunk(values, sampleRate));
+                consumer.accept(new AudioChunk(values, sampleRate, channels));
             }
         } catch (Exception exception) {
             Boxier.LOGGER.warn("Failed to decode browser audio", exception);

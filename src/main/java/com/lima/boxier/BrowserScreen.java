@@ -1,6 +1,7 @@
 package com.lima.boxier;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
@@ -56,6 +57,9 @@ public class BrowserScreen extends Screen {
         this.addRenderableWidget(Button.builder(Component.literal("X"), button -> this.onClose())
                 .bounds(this.width - 46, 4, 38, 20)
                 .build());
+
+        this.addRenderableWidget(new VolumeSlider(8, this.height - 30, 140, 20,
+                BrowserAudioManager.getVolume()));
 
         this.urlBox.setFocused(false);
         this.setFocused(null);
@@ -120,7 +124,7 @@ public class BrowserScreen extends Screen {
         int availableX = 8;
         int availableY = 32;
         int availableWidth = Math.max(1, this.width - 16);
-        int availableHeight = Math.max(1, this.height - 40);
+        int availableHeight = Math.max(1, this.height - 76);
 
         int textureWidth = 1280;
         int textureHeight = 1280;
@@ -379,6 +383,23 @@ public class BrowserScreen extends Screen {
             ClientPacketDistributor.sendToServer(new BrowserControlPayload(this.pos, true));
         }
         super.onClose();
+    }
+
+    private static final class VolumeSlider extends AbstractSliderButton {
+        private VolumeSlider(int x, int y, int width, int height, double value) {
+            super(x, y, width, height, Component.empty(), value);
+            this.updateMessage();
+        }
+
+        @Override
+        protected void updateMessage() {
+            this.setMessage(Component.translatable("boxier.browser.volume", Math.round(this.value * 100.0)));
+        }
+
+        @Override
+        protected void applyValue() {
+            BrowserAudioManager.setVolume((float) this.value);
+        }
     }
 
     private static int cdpModifiers(int sdlModifiers) {

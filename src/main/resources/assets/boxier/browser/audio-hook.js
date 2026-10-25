@@ -182,6 +182,7 @@
       assembler: new PcmAssembler(track.getSettings().sampleRate || 48000),
       media,
       element,
+      silentSince: 0,
       cancelled: false
     };
     state.captures.add(capture);
@@ -229,11 +230,38 @@
     data.copyTo(interleaved.buffer, { planeIndex: 0, format: 's16' });
 
     const stereo = new Int16Array(frames * CHANNELS);
+    let peak = 0;
     for (let i = 0; i < frames; i++) {
       stereo[i * 2] = interleaved[i * channels];
       stereo[i * 2 + 1] = channels > 1 ? interleaved[i * channels + 1] : interleaved[i * channels];
+      peak = Math.max(peak, Math.abs(stereo[i * 2]), Math.abs(stereo[i * 2 + 1]));
     }
+
+    if (capture.media && capture.element) {
+      const element = capture.element;
+      if (peak === 0 && !element.paused && !element.muted && element.readyState >= 2) {
+        if (!capture.silentSince) {
+          capture.silentSince = Date.now();
+        } else if (Date.now() - capture.silentSince > 4000) {
+          capture.silentSince = 0;
+          recaptureElement(element);
+          return;
+        }
+      } else {
+        capture.silentSince = 0;
+      }
+    }
+
     capture.assembler.push(stereo, data.sampleRate);
+  };
+
+  const recaptureElement = (element) => {
+    const existing = element.__boxierCapture;
+    if (existing) {
+      element.__boxierCapture = null;
+      cancelCapture(existing);
+    }
+    captureElement(element);
   };
 
   const cancelCapture = (capture) => {

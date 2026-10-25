@@ -18,8 +18,17 @@ import net.minecraft.world.level.Level;
 
 public final class BrowserAudioManager {
     private static final Map<Key, Channel> CHANNELS = new HashMap<>();
+    private static volatile float volume = 1.0F;
 
     private BrowserAudioManager() {
+    }
+
+    public static void setVolume(float value) {
+        volume = Math.max(0.0F, Math.min(1.0F, value));
+    }
+
+    public static float getVolume() {
+        return volume;
     }
 
     public static void play(Level level, BlockPos pos, byte[] packet) {
@@ -60,8 +69,9 @@ public final class BrowserAudioManager {
             if (this.source != 0) {
                 int state = AL10.alGetSourcei(this.source, AL10.AL_SOURCE_STATE);
                 long silence = this.lastPacketAt > 0 ? now - this.lastPacketAt : 0;
-                if (state != AL10.AL_PLAYING && silence > 2000) {
-                    Boxier.LOGGER.info("Reset browser audio channel at {} after {}ms of silence", this.pos, silence);
+                if (state != AL10.AL_PLAYING && (silence > 2000 || this.freeBuffers.isEmpty())) {
+                    Boxier.LOGGER.info("Reset browser audio channel at {} (state={} silence={}ms free={})", this.pos,
+                            state, silence, this.freeBuffers.size());
                     resetSource();
                 }
             }
@@ -117,7 +127,7 @@ public final class BrowserAudioManager {
             double distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
             float linear = (float) Math.max(0.0, Math.min(1.0, 1.0 - distance / 48.0));
             float gain = linear * linear * (3.0F - 2.0F * linear);
-            AL10.alSourcef(this.source, AL10.AL_GAIN, gain);
+            AL10.alSourcef(this.source, AL10.AL_GAIN, gain * volume);
         }
 
         private void resetSource() {
@@ -135,6 +145,9 @@ public final class BrowserAudioManager {
         }
 
         private void reclaim() {
+            if (this.source == 0 || AL10.alGetSourcei(this.source, AL10.AL_SOURCE_STATE) != AL10.AL_PLAYING) {
+                return;
+            }
             int processed = AL10.alGetSourcei(this.source, AL10.AL_BUFFERS_PROCESSED);
             while (processed-- > 0) {
                 int buffer = AL10.alSourceUnqueueBuffers(this.source);

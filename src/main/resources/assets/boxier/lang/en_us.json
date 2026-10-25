@@ -11,6 +11,7 @@
   "boxier.browser.width": "Width",
   "boxier.browser.height": "Height",
   "boxier.browser.save": "Save",
+  "boxier.browser.volume": "Volume: %s%%",
 
   "boxier.framer.title": "Framer",
   "boxier.framer.url": "Image URL",

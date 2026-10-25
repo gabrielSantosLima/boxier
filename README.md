@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="docs/boxier-logo.png" alt="Boxier logo" width="256">
+
 # Boxier
 
 A universal sandbox mod for Minecraft, built with NeoForge.
